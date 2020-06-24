@@ -1431,6 +1431,15 @@
          ebot_mlt = ebot_mlt - dhs*zqsn(k)
          ebot_mlt = max(ebot_mlt, c0)
 
+         !-----------------------------------------------------------
+         ! Added here to ensure that the snow-thickness diagostics
+         ! are closed. This is needed for isotope update.
+         !   hs = hs_old + evap - melts - dhs_snoice + dhs_snow
+         ! Jiang Zhu (jzhu47@wisc.edu), Nov. 20, 2014
+         !-----------------------------------------------------------
+
+         melts = melts - dhs
+
       enddo                     ! nslyr
 
       !-----------------------------------------------------------------
