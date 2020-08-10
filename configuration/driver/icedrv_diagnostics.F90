@@ -60,7 +60,7 @@
       subroutine runtime_diags (dt)
 
       use icedrv_arrays_column, only: floe_rad_c
-      use icedrv_flux, only: evap, fsnow, frazil
+      use icedrv_flux, only: evap, fsnow, frazil, fresh, update_ocn_f
       use icedrv_flux, only: fswabs, flw, flwout, fsens, fsurf, flat
       use icedrv_flux, only: frain, fiso_evap, fiso_ocn, fiso_atm
       use icedrv_flux, only: Tair, Qa, fsw, fcondtop
@@ -86,10 +86,10 @@
          pevap, pfhocn, fsdavg
 
       real (kind=dbl_kind), dimension (nx) :: &
-         work1, work2, work3
+         work1, work2, work3 
 
       real (kind=dbl_kind) :: &
-         Tffresh, rhos, rhow, rhoi
+         Tffresh, rhos, rhow, rhoi, wflux, werr, delm, mtot
 
       logical (kind=log_kind) :: tr_brine
       integer (kind=int_kind) :: nt_fbri, nt_Tsfc, nt_fsd, nt_isosno, nt_isoice
@@ -214,6 +214,22 @@
         write(nu_diag_out+n-1,900) 'freezing temp (C)      = ',Tf(n)   ! freezing temperature
         write(nu_diag_out+n-1,900) 'heat used (W/m^2)      = ',pfhocn  ! ocean heat used by ice
         
+        ! Add diagnostics
+
+        ! Water conservation
+
+        wflux = frain(n) + fsnow(n) + aice(n)*evap(n) - aice(n)*fresh(n)
+        if (.not. update_ocn_f) wflux = wflux + frazil(n)*rhoi/dt
+
+        delm = pdhi(n)*rhoi + pdhs(n)*rhos
+        mtot = vice(n)*rhoi + vsno(n)*rhos
+        
+        werr = c0
+        if (abs(mtot) .gt. c0) werr = (wflux*dt - delm) / mtot
+
+        write(nu_diag_out+n-1,*) '----------conservation diagnostics----------'
+        write(nu_diag_out+n-1,900) 'water flux error          = ',werr
+
         if (tr_iso) then
           do k = 1, n_iso
              write(nu_diag_out+n-1,901) 'isotopic precip      = ',fiso_atm(n,k)*dt,k
