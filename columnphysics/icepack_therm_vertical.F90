@@ -103,7 +103,8 @@
                                   congel,      snoice,    &
                                   mlt_onset,   frz_onset, &
                                   yday,        dsnow,     &
-                                  prescribed_ice)
+                                  prescribed_ice,         &
+                                  flpnd)
 
       real (kind=dbl_kind), intent(in) :: &
          dt      , & ! time step
@@ -194,7 +195,8 @@
          snoice   , & ! snow-ice formation       (m/step-->cm/day)
          dsnow    , & ! change in snow thickness (m/step-->cm/day)
          mlt_onset, & ! day of year that sfc melting begins
-         frz_onset    ! day of year that freezing begins (congel or frazil)
+         frz_onset, & ! day of year that freezing begins (congel or frazil)
+         flpnd        ! pond flushing rate due to ice permeability (m/s)
 
       real (kind=dbl_kind), intent(in) :: &
          yday         ! day of year
@@ -261,6 +263,7 @@
       meltsliq= c0
       massice(:) = c0
       massliq(:) = c0
+      flpnd   = c0
 
       if (calc_Tsfc) then
          fsensn  = c0
@@ -319,7 +322,8 @@
                                               flwoutn,   fsurfn,    &
                                               fcondtopn, fcondbotn, &
                                               fadvocn,   snoice,    &
-                                              smice,     smliq)
+                                              smice,     smliq,     &
+                                              flpnd)
             if (icepack_warnings_aborted(subname)) return
 
          else ! ktherm
@@ -2205,7 +2209,8 @@
                                     yday        , prescribed_ice, &
                                     zlvs        , &
                                     afsdn       , nfsd        , &
-                                    floe_rad_c,   floe_binwidth)
+                                    floe_rad_c,   floe_binwidth,&
+                                    flpnd       , flpndn)
 
       real (kind=dbl_kind), intent(in) :: &
          dt          , & ! time step
@@ -2290,7 +2295,8 @@
          melts       , & ! snow melt                (m/step-->cm/day)
          meltb       , & ! basal ice melt           (m/step-->cm/day)
          mlt_onset   , & ! day of year that sfc melting begins
-         frz_onset       ! day of year that freezing begins (congel or frazil)
+         frz_onset   , & ! day of year that freezing begins (congel or frazil)
+         flpnd           ! pond flushing rate due to ice permeability (m/s)
 
       real (kind=dbl_kind), intent(out), optional :: &
          wlat            ! lateral melt rate (m/s)
@@ -2373,7 +2379,8 @@
          meltbn      , & ! bottom ice melt                        (m)
          congeln     , & ! congelation ice growth                 (m)
          snoicen     , & ! snow-ice growth                        (m)
-         dsnown          ! change in snow thickness (m/step-->cm/day)
+         dsnown      , & ! change in snow thickness (m/step-->cm/day)
+         flpndn          ! category pond flushing rate          (m/s)
 
       real (kind=dbl_kind), dimension(:), intent(in) :: &
          fswthrun        ! SW through ice to ocean            (W/m^2)
@@ -2590,6 +2597,7 @@
          congeln(n) = c0
          snoicen(n) = c0
          dsnown (n) = c0
+         flpndn (n) = c0
 
          Trefn  = c0
          Qrefn  = c0
@@ -2716,7 +2724,8 @@
                                  congel=congeln  (n), snoice=snoicen      (n), &
                                  mlt_onset=mlt_onset, frz_onset=frz_onset,     &
                                  yday=yday,           dsnow=dsnown        (n), &
-                                 prescribed_ice=prescribed_ice)
+                                 prescribed_ice=prescribed_ice,                &
+                                 flpnd=flpndn    (n))
 
             if (icepack_warnings_aborted(subname)) then
                write(warnstr,*) subname, ' ice: Vertical thermo error, cat ', n
