@@ -1438,8 +1438,8 @@
 
          ! floe size distribution
          if (tr_fsd) call icepack_init_fsd(nfsd=nfsd, ice_ic=ice_ic, &
-                                  floe_rad_c=floe_rad_c,             &
-                                  floe_binwidth=floe_binwidth,       &
+                                  floe_rad_c=floe_rad_c(i,:),        &
+                                  floe_binwidth=floe_binwidth(i,:),  &
                                   afsd=trcrn(i,nt_fsd:nt_fsd+nfsd-1,n))
          ! surface temperature
          trcrn(i,nt_Tsfc,n) = Tsfc ! deg C
@@ -1509,8 +1509,8 @@
                                 qin=qin(:), qsn=qsn(:))
          ! floe size distribution
          if (tr_fsd) call icepack_init_fsd(nfsd=nfsd, ice_ic=ice_ic, &
-                                  floe_rad_c=floe_rad_c,             &
-                                  floe_binwidth=floe_binwidth,       &
+                                  floe_rad_c=floe_rad_c(i,:),        &
+                                  floe_binwidth=floe_binwidth(i,:),  &
                                   afsd=trcrn(i,nt_fsd:nt_fsd+nfsd-1,n))
 
          ! surface temperature
@@ -1565,9 +1565,9 @@
          wave_spectrum, d_afsd_newi, d_afsd_latg, d_afsd_latm, &
          d_afsd_wave, d_afsd_weld
 
-      wavefreq       (:)   = c0
-      dwavefreq      (:)   = c0
-      wave_sig_ht    (:)   = c0
+      wavefreq       (:,:) = c0
+      dwavefreq      (:,:) = c0
+      wave_sig_ht    (:) = c0
       wave_spectrum  (:,:) = c0
       d_afsd_newi    (:,:) = c0
       d_afsd_latg    (:,:) = c0
