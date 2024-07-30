@@ -1438,8 +1438,8 @@
 
          ! floe size distribution
          if (tr_fsd) call icepack_init_fsd(nfsd=nfsd, ice_ic=ice_ic, &
-                                  floe_rad_c=floe_rad_c(i,:),        &
-                                  floe_binwidth=floe_binwidth(i,:),  &
+                                  floe_rad_c=floe_rad_c(:),        &
+                                  floe_binwidth=floe_binwidth(:),  &
                                   afsd=trcrn(i,nt_fsd:nt_fsd+nfsd-1,n))
          ! surface temperature
          trcrn(i,nt_Tsfc,n) = Tsfc ! deg C
@@ -1509,8 +1509,8 @@
                                 qin=qin(:), qsn=qsn(:))
          ! floe size distribution
          if (tr_fsd) call icepack_init_fsd(nfsd=nfsd, ice_ic=ice_ic, &
-                                  floe_rad_c=floe_rad_c(i,:),        &
-                                  floe_binwidth=floe_binwidth(i,:),  &
+                                  floe_rad_c=floe_rad_c(:),        &
+                                  floe_binwidth=floe_binwidth(:),  &
                                   afsd=trcrn(i,nt_fsd:nt_fsd+nfsd-1,n))
 
          ! surface temperature
