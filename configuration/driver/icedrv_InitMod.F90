@@ -106,7 +106,7 @@
             floe_rad_l=floe_rad_l(i,:),       &  ! fsd size lower bound in m (radius)
             floe_rad_c=floe_rad_c(i,:),       &  ! fsd size bin centre in m (radius)
             floe_binwidth=floe_binwidth(i,:), &  ! fsd size bin width in m (radius)
-            c_fsd_range=c_fsd_range(i,:)    , &  ! string for history output
+            c_fsd_range=c_fsd_range(:)      , &  ! string for history output
             write_diags=.true.)
 
          enddo
