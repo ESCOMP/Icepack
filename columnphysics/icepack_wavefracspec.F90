@@ -1,3 +1,5 @@
+!
+!
 !  This module contains the subroutines required to fracture sea ice
 !  by ocean surface waves
 !
@@ -42,7 +44,7 @@
       real (kind=dbl_kind), parameter  :: &
          swh_minval = 0.01_dbl_kind,  & ! minimum value of wave height (m)
          straincrit = 3.e-5_dbl_kind, & ! critical strain
-         D          = 1.e4_dbl_kind,  & ! domain size
+!         D          = 1.e4_dbl_kind,  & ! domain size
          dx         = c1,             & ! domain spacing
          threshold  = c10               ! peak-finding threshold -
                                         ! points are defined to be extrema if they
@@ -52,7 +54,7 @@
                                         ! find this to be the order of the smallest
                                         ! floe size affected by wave fracture
 
-      integer (kind=int_kind), parameter :: &
+      integer (kind=int_kind), parameter, public :: &
          nx = 10000         ! number of points in domain
 
       integer (kind=int_kind), parameter :: &
@@ -215,7 +217,7 @@
          wavefreq,     & ! wave frequencies (s^-1)
          dwavefreq       ! wave frequency bin widths (s^-1)
 
-      real (kind=dbl_kind), dimension(:), intent(in) :: &
+      real (kind=dbl_kind), dimension(:), intent(inout) :: &
          wave_spectrum   ! ocean surface wave spectrum as a function of frequency
                          ! power spectral density of surface elevation, E(f) (units m^2 s)
 
@@ -259,15 +261,15 @@
       d_afsdn_wave   (:,:) = c0
       fracture_hist  (:)   = c0
 
+
       ! if all ice is not in first floe size category
       if (.NOT. ALL(trcrn(nt_fsd,:).ge.c1-puny)) then
-
 
       ! do not try to fracture for minimal ice concentration or zero wave spectrum
       if ((aice > p01).and.(MAXVAL(wave_spectrum(:)) > puny)) then
 
-         hbar = vice / aice
-
+         !hbar = vice / aice
+         print *, 'now call wave_frac'
          ! calculate fracture histogram
          call wave_frac(nfsd, nfreq, wave_spec_type, &
                         floe_rad_l, floe_rad_c, &
@@ -453,8 +455,7 @@
 
       character(len=*),parameter :: &
          subname='(wave_frac)'
-
-
+    
       if (trim(wave_spec_type).eq.'random') then
           ! run wave fracture to convergence
           loop_max_iter = max_no_iter
@@ -572,11 +573,11 @@
       real (kind=dbl_kind), intent(in) :: &
          hbar             ! mean thickness (m)
 
-      real (kind=dbl_kind), intent(in), dimension (nx) :: &
+      real (kind=dbl_kind), intent(in), dimension (:) :: &
          X, &              ! spatial domain (m)
          eta               ! sea surface height field (m)
 
-      real (kind=dbl_kind), intent(inout), dimension (nx) :: &
+      real (kind=dbl_kind), intent(inout), dimension (:) :: &
          fraclengths      ! The distances between fracture points
                           ! Size cannot be greater than nx.
                           ! In practice, will be much less

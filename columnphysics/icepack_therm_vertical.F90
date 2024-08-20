@@ -20,14 +20,14 @@
       module icepack_therm_vertical
 
       use icepack_kinds
-      use icepack_parameters, only: c0, c1, p001, p5, puny
+      use icepack_parameters, only: c0, c1, c2, p001, p5, puny
       use icepack_parameters, only: pi, depressT, Lvap, hs_min, cp_ice, min_salin
       use icepack_parameters, only: cp_ocn, rhow, rhoi, rhos, Lfresh, rhofresh, ice_ref_salinity
       use icepack_parameters, only: ktherm, calc_Tsfc, rsnw_fall, rsnw_tmax
       use icepack_parameters, only: ustar_min, fbot_xfer_type, formdrag, calc_strair
       use icepack_parameters, only: rfracmin, rfracmax, dpscale, frzpnd, snwgrain, snwlvlfac
       use icepack_parameters, only: phi_i_mushy, floeshape, floediam, use_smliq_pnd, snwredist
-      use icepack_parameters, only: saltflux_option, congel_freeze
+      use icepack_parameters, only: saltflux_option
       use icepack_parameters, only: icepack_chkoptargflag
 
       use icepack_tracers, only: tr_iage, tr_FY, tr_aero, tr_pond, tr_fsd, tr_iso
@@ -46,7 +46,6 @@
       use icepack_mushy_physics, only: icepack_mushy_temperature_mush
       use icepack_mushy_physics, only: liquidus_temperature_mush
       use icepack_mushy_physics, only: icepack_enthalpy_mush, enthalpy_of_melting
-      use icepack_mushy_physics, only: enthalpy_mush_liquid_fraction, enthalpy_brine
 
       use icepack_aerosol, only: update_aerosol
       use icepack_isotope, only: update_isotope
@@ -86,7 +85,7 @@
                                   fsnow,       fpond,     &
                                   fbot,        Tbot,      &
                                   Tsnice,      sss,       &
-                                  sst,         rsnw,      &
+                                  rsnw,                   &
                                   lhcoef,      shcoef,    &
                                   fswsfc,      fswint,    &
                                   Sswabs,      Iswabs,    &
@@ -165,7 +164,6 @@
       real (kind=dbl_kind), intent(in) :: &
          fbot    , & ! ice-ocean heat flux at bottom surface (W/m^2)
          Tbot    , & ! ice bottom surface temperature (deg C)
-         sst     , & ! sea surface temperature (C)
          sss         ! ocean salinity
 
       ! coupler fluxes to atmosphere
@@ -405,7 +403,6 @@
                              congel,      snoice,    &
                              mlt_onset,   frz_onset, &
                              zSin,        sss,       &
-                             sst,                    &
                              dsnow,       rsnw)
       if (icepack_warnings_aborted(subname)) return
 
@@ -494,8 +491,10 @@
                                         fbot_xfer_type,     &
                                         strocnxT, strocnyT, &
                                         Tbot,     fbot,     &
-                                        rside,    Cdn_ocn,  &
-                                        fside,    wlat)
+                                        rsiden,    Cdn_ocn,  &
+                                        wlat,      aicen, &
+                                        afsdn,     nfsd,     &
+                                        floe_rad_c, floe_binwidth)
 
       integer (kind=int_kind), intent(in) :: &
          ncat  , & ! number of thickness categories
@@ -528,14 +527,35 @@
 
       real (kind=dbl_kind), intent(out) :: &
          Tbot    , & ! ice bottom surface temperature (deg C)
-         fbot    , & ! heat flux to ice bottom  (W/m^2)
-         rside   , & ! fraction of ice that melts laterally
-         fside       ! lateral heat flux (W/m^2)
+         fbot        ! heat flux to ice bottom  (W/m^2)
+
+      real (kind=dbl_kind), dimension(:), intent(out) :: &
+         rsiden      ! fraction of ice that melts laterally
 
       real (kind=dbl_kind), intent(out), optional :: &
          wlat        ! lateral melt rate (m/s)
 
+      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
+         floe_rad_c     , & ! fsd size bin centre in m (radius)
+         floe_binwidth      ! fsd size bin width in m (radius)
+
+      real (kind=dbl_kind), dimension(:), intent(in), optional :: &
+         aicen     ! ice concentration
+
+      real (kind=dbl_kind), dimension (:,:), intent(in), optional :: &
+         afsdn     ! area floe size distribution
+
+      integer (kind=int_kind), intent(in), optional :: &
+         nfsd        ! number of floe size categories
+
       ! local variables
+      real (kind=dbl_kind), dimension (ncat) :: &
+         delta_an  , & ! change in the ITD
+         G_radialn     ! lateral melt rate in FSD (m/s)
+
+      real (kind=dbl_kind) :: &
+         rside     , & !
+         fside       ! lateral heat flux (W/m^2)
 
       integer (kind=int_kind) :: &
          n              , & ! thickness category index
@@ -549,6 +569,7 @@
       real (kind=dbl_kind) :: &
          deltaT    , & ! SST - Tbot >= 0
          ustar     , & ! skin friction velocity for fbot (m/s)
+         bin1_arealoss, &
          xtmp          ! temporary variable
 
       ! Parameters for bottom melting
@@ -570,11 +591,11 @@
       ! Identify grid cells where ice can melt.
       !-----------------------------------------------------------------
 
-      rside = c0
-      fside = c0
+      rsiden(:) = c0
       Tbot  = Tf
       fbot  = c0
       wlat_loc = c0
+      if (present(wlat)) wlat=c0
 
       if (aice > puny .and. frzmlt < c0) then ! ice can melt
 
@@ -614,10 +635,52 @@
          rside = wlat_loc*dt*pi/(floeshape*floediam) ! Steele
          rside = max(c0,min(rside,c1))
 
+         if (rside == c0) return ! nothing more to do so get out
+
+         rsiden(:) = rside
+
+         if (tr_fsd) then ! alter rsiden now since floes are not of size floediam
+
+         do n = 1, ncat
+
+            G_radialn(n) = -wlat_loc ! negative
+
+            if (any(afsdn(:,n) < c0)) then
+               write(warnstr,*) subname, 'lateral_melt B afsd < 0 ',n
+               call icepack_warnings_add(warnstr)
+            endif
+
+            bin1_arealoss = -afsdn(1,n)  / floe_binwidth(1) ! when scaled by *G_radialn(n)*dt*aicen(n)
+
+            delta_an(n) = c0
+            do k = 1, nfsd
+               ! this is delta_an(n) when scaled by *G_radialn(n)*dt*aicen(n)
+               delta_an(n) = delta_an(n) + ((c2/floe_rad_c(k)) * afsdn(k,n)) ! delta_an < 0
+            end do
+
+            ! add negative area loss from fsd
+            delta_an(n) = (delta_an(n) - bin1_arealoss)*G_radialn(n)*dt
+
+            if (delta_an(n) > c0) then
+               write(warnstr,*) subname, 'ERROR delta_an > 0 ',delta_an(n)
+               call icepack_warnings_add(warnstr)
+            endif
+
+            ! following original code, not necessary for fsd
+            if (aicen(n) > c0) rsiden(n) = MIN(-delta_an(n),c1)
+
+            if (rsiden(n) < c0) then
+               write(warnstr,*) subname, 'ERROR rsiden < 0 ',rsiden(n)
+               call icepack_warnings_add(warnstr)
+            endif
+
+         enddo ! ncat
+         endif ! if tr_fsd
+
       !-----------------------------------------------------------------
       ! Compute heat flux associated with this value of rside.
       !-----------------------------------------------------------------
-
+         fside = c0
          do n = 1, ncat
 
             etot = c0
@@ -632,21 +695,26 @@
             enddo                  ! nilyr
 
             ! lateral heat flux, fside < 0
-            fside = fside + rside*etot/dt
+            fside = fside + rsiden(n)*etot/dt
 
          enddo                     ! n
 
       !-----------------------------------------------------------------
       ! Limit bottom and lateral heat fluxes if necessary.
-      ! FYI: fside is not yet correct for fsd, may need to adjust fbot further
+      ! Limit rside so we don't melt laterally more ice than frzmlt permits
       !-----------------------------------------------------------------
 
          xtmp = frzmlt/(fbot + fside - puny)
          xtmp = min(xtmp, c1)
+         xtmp = max(xtmp, c0)
          fbot  = fbot  * xtmp
-         rside = rside * xtmp
-         fside = fside * xtmp
 
+         do n = 1, ncat
+            rsiden(n) = rsiden(n) * xtmp  ! xtmp is almost always 1 so usually nothing happens here
+         enddo ! ncat
+
+!         write(warnstr,*) 'FBM ',rsiden(1), xtmp
+!         call icepack_warnings_add(warnstr)
       endif
 
       if (present(wlat)) wlat=wlat_loc
@@ -1016,7 +1084,6 @@
                                     congel,    snoice,   &
                                     mlt_onset, frz_onset,&
                                     zSin,      sss,      &
-                                    sst,                 &
                                     dsnow,     rsnw)
 
       integer (kind=int_kind), intent(in) :: &
@@ -1086,7 +1153,6 @@
          zSin            ! ice layer salinity (ppt)
 
       real (kind=dbl_kind), intent(in) :: &
-         sst         , & ! sea surface temperature (C)
          sss             ! ocean salinity (PSU)
 
       ! local variables
@@ -1136,9 +1202,9 @@
          qmlt            ! enthalpy of melted ice (J m-3) = zero in BL99 formulation
 
       real (kind=dbl_kind) :: &
-         qbotm       , & ! enthalpy of newly formed congelation ice
-         qbotp       , & ! enthalpy needed to grow new congelation ice (includes ocean enthalpy)
-         qbotw       , & ! enthalpy transferred to ocean during congelation freezing
+         qbotm       , &
+         qbotp       , &
+         qbot0       , &
          mass        , & ! total  mass from snow density tracers (kg/m^2)
          massi       , & ! ice mass change factor
          tmp1            ! temporary scalar
@@ -1259,22 +1325,15 @@
 
       if (ktherm == 2) then
 
-         if (congel_freeze == 'one-step') then
-            ! Plante et al., The Cryosphere, 18, 1685-1708, 2024
-            qbotm = enthalpy_mush_liquid_fraction(Tbot, phi_i_mushy)
-            qbotw = enthalpy_brine(sst)
-            qbotp = qbotm - qbotw
-            dhi = ebot_gro / qbotp     ! dhi > 0
-            hstot = dzi(nilyr)*zSin(nilyr) + dhi*sss*phi_i_mushy
-         else ! two-step
-            qbotm = icepack_enthalpy_mush(Tbot, sss)
-            qbotp = -Lfresh * rhoi * (c1 - phi_i_mushy)
-            qbotw = qbotm - qbotp
-            dhi = ebot_gro / qbotp     ! dhi > 0
-            hstot = dzi(nilyr)*zSin(nilyr) + dhi*sss
-         endif
+         qbotm = icepack_enthalpy_mush(Tbot, sss)
+         qbotp = -Lfresh * rhoi * (c1 - phi_i_mushy)
+         qbot0 = qbotm - qbotp
+
+         dhi = ebot_gro / qbotp     ! dhi > 0
+
          hqtot = dzi(nilyr)*zqin(nilyr) + dhi*qbotm
-         emlt_ocn = emlt_ocn - qbotw * dhi
+         hstot = dzi(nilyr)*zSin(nilyr) + dhi*sss
+         emlt_ocn = emlt_ocn - qbot0 * dhi
 
       else
 
@@ -2121,8 +2180,8 @@
                                     strocnxT    , strocnyT    , &
                                     fbot        ,               &
                                     Tbot        , Tsnice      , &
-                                    frzmlt      , rside       , &
-                                    fside       , wlat        , &
+                                    frzmlt      , rsiden      , &
+                                    wlat        ,               &
                                     fsnow       , frain       , &
                                     fpond       , fsloss      , &
                                     fsurf       , fsurfn      , &
@@ -2169,7 +2228,9 @@
                                     lmask_n     , lmask_s     , &
                                     mlt_onset   , frz_onset   , &
                                     yday        , prescribed_ice, &
-                                    zlvs)
+                                    zlvs        , &
+                                    afsdn       , nfsd        , &
+                                    floe_rad_c,   floe_binwidth)
 
       integer (kind=int_kind), intent(in) :: &
          ncat        , & ! number of thickness categories
@@ -2250,8 +2311,6 @@
          strocnyT    , & ! ice-ocean stress, y-direction
          fbot        , & ! ice-ocean heat flux at bottom surface (W/m^2)
          frzmlt      , & ! freezing/melting potential         (W/m^2)
-         rside       , & ! fraction of ice that melts laterally
-         fside       , & ! lateral heat flux                  (W/m^2)
          sst         , & ! sea surface temperature                (C)
          Tf          , & ! freezing temperature                   (C)
          Tbot        , & ! ice bottom surface temperature     (deg C)
@@ -2264,7 +2323,7 @@
          frz_onset       ! day of year that freezing begins (congel or frazil)
 
       real (kind=dbl_kind), intent(out), optional :: &
-         wlat            ! lateral melt rate                    (m/s)
+         wlat            ! lateral melt rate (m/s)
 
       real (kind=dbl_kind), intent(inout), optional :: &
          fswthru_vdr , & ! vis dir shortwave penetrating to ocean (W/m^2)
@@ -2298,6 +2357,16 @@
          H2_18O_ocn  , & ! ocean concentration of H2_18O      (kg/kg)
          zlvs            ! atm level height for scalars (if different than zlvl) (m)
 
+      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
+         floe_rad_c, &  ! fsd size bin centre in m (radius)
+         floe_binwidth  ! fsd size bin width in m (radius)
+
+      real (kind=dbl_kind), dimension(:,:), intent(in), optional :: &
+         afsdn        ! afsd tracer
+
+      integer (kind=int_kind), intent(in), optional :: &
+         nfsd         ! number of fsd categories
+
       real (kind=dbl_kind), dimension(:), intent(inout) :: &
          aicen_init  , & ! fractional area of ice
          vicen_init  , & ! volume per unit area of ice            (m)
@@ -2313,6 +2382,7 @@
          ipnd        , & ! melt pond refrozen lid thickness       (m)
          iage        , & ! volume-weighted ice age
          FY          , & ! area-weighted first-year ice area
+         rsiden      , & ! fraction of ice that melts laterally
          fsurfn      , & ! net flux to top surface, excluding fcondtop
          fcondtopn   , & ! downward cond flux at top surface  (W m-2)
          fcondbotn   , & ! downward cond flux at bottom surface (W m-2)
@@ -2456,13 +2526,6 @@
             call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
             return
          endif
-         if (tr_fsd) then
-            if (.not.(present(wlat))) then
-               call icepack_warnings_add(subname//' error in FSD arguments, tr_fsd=T')
-               call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
-               return
-            endif
-         endif
       endif
 
       !-----------------------------------------------------------------
@@ -2529,7 +2592,7 @@
       endif
 
       !-----------------------------------------------------------------
-      ! Adjust frzmlt to account for ice-ocean heat fluxes since last
+      ! Use frzmlt to account for ice-ocean heat fluxes since last
       !  call to coupler.
       ! Compute lateral and bottom heat fluxes.
       !-----------------------------------------------------------------
@@ -2543,9 +2606,11 @@
                                   ustar_min,            &
                                   fbot_xfer_type,       &
                                   strocnxT,  strocnyT,  &
-                                  Tbot,      fbot,      &
-                                  rside,     Cdn_ocn,   &
-                                  fside,     wlat)
+                                  Tbot,       fbot,     &
+                                  rsiden,     Cdn_ocn,   &
+                                  wlat,       aicen,  &
+                                  afsdn,      nfsd,      &
+                                  floe_rad_c, floe_binwidth)
 
       if (icepack_warnings_aborted(subname)) return
 
@@ -2665,7 +2730,7 @@
                                  fsnow=fsnow,         fpond=fpond,             &
                                  fbot=fbot,           Tbot=Tbot,               &
                                  Tsnice=Tsnice,       sss=sss,                 &
-                                 sst=sst,             rsnw=rsnw,               &
+                                 rsnw=rsnw,                                    &
                                  lhcoef=lhcoef,       shcoef=shcoef,           &
                                  fswsfc=fswsfcn  (n), fswint=fswintn      (n), &
                                  Sswabs=Sswabsn(:,n), Iswabs=Iswabsn    (:,n), &
