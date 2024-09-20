@@ -2216,7 +2216,6 @@
                                     zlvs        , &
                                     afsdn       , nfsd        , &
                                     floe_rad_c,   floe_binwidth,&
-                                    flpnd       , flpndn      , &
                                     expnd       , expndn      , &
                                     frpnd       , frpndn      , &
                                     rfpnd       , rfpndn      , &
