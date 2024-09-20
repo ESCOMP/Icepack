@@ -2239,6 +2239,8 @@
                                     mlt_onset   , frz_onset   , &
                                     yday        , prescribed_ice, &
                                     zlvs        , &
+                                    afsdn       , nfsd        , &
+                                    floe_rad_c,   floe_binwidth, &
                                     flpnd       , flpndn      , &
                                     expnd       , expndn      , &
                                     frpnd       , frpndn      , &
