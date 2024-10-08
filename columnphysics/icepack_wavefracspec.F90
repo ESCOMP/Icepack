@@ -263,7 +263,6 @@
       if ((aice > p01).and.(MAXVAL(wave_spectrum(:)) > puny)) then
 
          !hbar = vice / aice
-         print *, 'now call wave_frac'
          ! calculate fracture histogram
          call wave_frac(nfreq, wave_spec_type, &
                         floe_rad_l, floe_rad_c, &
