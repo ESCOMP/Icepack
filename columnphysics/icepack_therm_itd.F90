@@ -1573,10 +1573,7 @@
             ! check lateral growth doesn't exceed total growth
             ! if it does, adjust it
             if (SUM(vin0new)>vi0new) then
-                print *, 'LR error ',vi0new,SUM(vin0new)
-                print *, 'fixing it'
                 vin0new(:) = vin0new(:)*vi0new/SUM(vin0new)
-                print *, 'now ',vi0new,SUM(vin0new)
             end if
 
             ! remove the new ice created by lateral growth
