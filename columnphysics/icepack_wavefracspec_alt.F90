@@ -18,7 +18,7 @@
       use icepack_kinds
       use icepack_parameters, only: p01, p5, c0, c1, c2, c3, c4, c10
       use icepack_parameters, only: bignum, puny, gravit, pi, rhow, rhoi
-      use icepack_tracers, only: nt_fsd
+      use icepack_tracers, only: nt_fsd, ncat, nfsd
       use icepack_warnings, only: warnstr, icepack_warnings_add,  icepack_warnings_aborted
       use icepack_fsd
 
@@ -46,7 +46,7 @@
 !           2024 Lettie Roach, Columbia/NASA GISS - updates for new scheme
 !
       subroutine icepack_step_wavefracture_alt(wave_spec_type,   &
-                  dt,            ncat,            nfsd,      &
+                  dt,                                        &
                   nfreq,                                     &
                   aice,          vice,            aicen,     &
                   floe_rad_l,    floe_rad_c,                 &
@@ -58,9 +58,7 @@
          wave_spec_type   ! type of wave spectrum forcing
 
       integer (kind=int_kind), intent(in) :: &
-         nfreq,        & ! number of wave frequency categories
-         ncat,         & ! number of thickness categories
-         nfsd            ! number of floe size categories
+         nfreq            ! number of wave frequency categories
 
       real (kind=dbl_kind), intent(in) :: &
          dt,           & ! time step
@@ -140,7 +138,7 @@
           END DO
           if (MAXVAL(fracture_hist) > puny) then
             ! protect against small numerical errors
-            call icepack_cleanup_fsd (ncat, nfsd, trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
+            call icepack_cleanup_fsd ( trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
             if (icepack_warnings_aborted(subname)) return
 
              DO n = 1, ncat
@@ -167,7 +165,7 @@
 
                   ! update trcrn
                   trcrn(nt_fsd:nt_fsd+nfsd-1,n) = afsd_tmp/SUM(afsd_tmp)
-                  call icepack_cleanup_fsd (ncat, nfsd, trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
+                  call icepack_cleanup_fsd ( trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
                   if (icepack_warnings_aborted(subname)) return
 
                   ! for diagnostics

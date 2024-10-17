@@ -1752,6 +1752,7 @@
                                     first_ice,    fzsal,         &
                                     flux_bio,     closing,       &
                                     Tf,                          &
+                                    rdpnd,                       &
                                     docleanup,    dorebin)
 
       real (kind=dbl_kind), intent(in) :: &
