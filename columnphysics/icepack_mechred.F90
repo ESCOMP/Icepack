@@ -40,16 +40,10 @@
       use icepack_parameters, only: icepack_chkoptargflag
 
       use icepack_parameters, only: kstrength, krdg_partic, krdg_redist, mu_rdg
-<<<<<<< HEAD
       use icepack_parameters, only: conserv_check, z_tracers
       use icepack_tracers, only: ncat, nilyr, nslyr, nblyr, n_aero
       use icepack_tracers, only: tr_aero, tr_iso, tr_brine, ntrcr, nbtrcr
-      use icepack_tracers, only: tr_pond_topo, tr_pond_lvl
-=======
-      use icepack_parameters, only: conserv_check
-      use icepack_tracers, only: tr_aero, tr_iso, tr_brine, ntrcr, nbtrcr
       use icepack_tracers, only: tr_pond_lvl, tr_pond_topo, tr_pond_sealvl
->>>>>>> dec8971 (added meltpond_sealvl module, code compiles, need to check science in icepack_shortwave)
       use icepack_tracers, only: nt_qice, nt_qsno, nt_fbri, nt_sice
       use icepack_tracers, only: nt_alvl, nt_vlvl, nt_aero, nt_isosno, nt_isoice
       use icepack_tracers, only: nt_apnd, nt_hpnd
@@ -1390,7 +1384,6 @@
                enddo
             endif
 
-<<<<<<< HEAD
             if (z_tracers .and. nbtrcr > 0) then
                dzssl = p5/real(nslyr,kind=dbl_kind)
                dzint = c1-dzssl
@@ -1401,10 +1394,7 @@
                enddo
             endif
 
-            if (tr_pond_topo) then
-=======
             if (tr_pond_topo .or. tr_pond_sealvl) then
->>>>>>> dec8971 (added meltpond_sealvl module, code compiles, need to check science in icepack_shortwave)
                mpond = mpond + ardg1n * trcrn(nt_apnd,n) &
                                       * trcrn(nt_hpnd,n)
             endif

@@ -154,13 +154,6 @@
           ilpnd     ! pond loss/gain (+/-) to ice lid freezing/melting (m/step)
 
       real (kind=dbl_kind), intent(inout), optional :: &
-          fswthru_vdr , & ! vis dir sw radiation through ice bot    (W/m**2)
-          fswthru_vdf , & ! vis dif sw radiation through ice bot    (W/m**2)
-          fswthru_idr , & ! nir dir sw radiation through ice bot    (W/m**2)
-          fswthru_idf     ! nir dif sw radiation through ice bot    (W/m**2)
-
-      real (kind=dbl_kind), intent(inout), optional :: &
->>>>>>> df2b57c (runs with per-category freshwater fluxes)
           dsnow,    & ! change in snow depth            (m)
           Uref        ! air speed reference level       (m/s)
 

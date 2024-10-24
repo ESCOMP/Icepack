@@ -140,7 +140,7 @@
           END DO
           if (MAXVAL(fracture_hist) > puny) then
             ! protect against small numerical errors
-            call icepack_cleanup_fsd (ncat, nfsd, trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
+            call icepack_cleanup_fsd (trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
             if (icepack_warnings_aborted(subname)) return
 
              DO n = 1, ncat
@@ -167,7 +167,7 @@
 
                   ! update trcrn
                   trcrn(nt_fsd:nt_fsd+nfsd-1,n) = afsd_tmp/SUM(afsd_tmp)
-                  call icepack_cleanup_fsd (ncat, nfsd, trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
+                  call icepack_cleanup_fsd (trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
                   if (icepack_warnings_aborted(subname)) return
 
                   ! for diagnostics
