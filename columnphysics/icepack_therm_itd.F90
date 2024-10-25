@@ -95,8 +95,12 @@
                              aicen,       trcrn,       &
                              vicen,       vsnon,       &
                              aice,        aice0,       &
+<<<<<<< HEAD
                              fpond,       Tf,          &
                              mipnd)
+=======
+                             fpond,       Tf           )
+>>>>>>> origin/main
 
       real (kind=dbl_kind), dimension(0:ncat), intent(in) :: &
          hin_max      ! category boundaries (m)
@@ -885,8 +889,12 @@
                                aicen,      vicen,      &
                                vsnon,      trcrn,      &
                                flux_bio,   d_afsd_latm,&
+<<<<<<< HEAD
                                floe_rad_c, floe_binwidth, &
                                mipnd)
+=======
+                               floe_rad_c, floe_binwidth)
+>>>>>>> origin/main
 
       real (kind=dbl_kind), intent(in) :: &
          dt        ! time step (s)
@@ -948,8 +956,15 @@
       real (kind=dbl_kind), dimension (ncat) :: &
          aicen_init, & ! initial area fraction
          vicen_init, & ! volume per unit area of ice (m)
+<<<<<<< HEAD
          vsnon_init, & ! volume per unit area of snow (m)
          G_radialn     ! rate of lateral melt (m/s)
+=======
+         vsnon_init, & ! initial volume of snow (m)
+         G_radialn , & ! rate of lateral melt (m/s)
+         delta_an  , & ! change in the ITD
+         rsiden        ! delta_an/aicen
+>>>>>>> origin/main
 
       real (kind=dbl_kind), dimension (:,:), allocatable :: &
          afsdn     , & ! floe size distribution tracer
@@ -982,8 +997,17 @@
       dfsalt   = c0
       dvssl    = c0
       dvint    = c0
+<<<<<<< HEAD
       vicen_init(:) = vicen(:)
       vsnon_init(:) = vsnon(:)
+=======
+      bin1_arealoss  = c0
+      tmp  = c0
+      vicen_init = vicen(:)
+      G_radialn  = c0
+      delta_an   = c0
+      rsiden     = c0
+>>>>>>> origin/main
 
       if (tr_fsd) then
          call icepack_cleanup_fsd (trcrn(nt_fsd:nt_fsd+nfsd-1,:))
@@ -1058,7 +1082,16 @@
                   d_afsd_tmp(:) = c0
                   nsubt = 0
 
+<<<<<<< HEAD
                   DO WHILE (elapsed_t.lt.dt)
+=======
+            ! state variables
+            vicen_init(n) = vicen(n)
+            vsnon_init(n) = vsnon(n)
+            aicen(n) = aicen(n) * (c1 - rsiden(n))
+            vicen(n) = vicen(n) * (c1 - rsiden(n))
+            vsnon(n) = vsnon(n) * (c1 - rsiden(n))
+>>>>>>> origin/main
 
                      nsubt = nsubt + 1
                      if (nsubt.gt.100) then
@@ -1102,7 +1135,13 @@
 
                   END DO
 
+<<<<<<< HEAD
                   afsdn(:,n) = afsd_tmp(:)
+=======
+                         ! timestep required for this
+                         subdt = get_subdt_fsd(afsd_tmp(:), d_afsd_tmp(:))
+                         subdt = MIN(subdt, dt)
+>>>>>>> origin/main
 
                end if ! aicen
             end if ! rside > 0, otherwise do nothing
@@ -1165,10 +1204,15 @@
 
          if (z_tracers) &
             call lateral_melt_bgc(dt,                         &
+<<<<<<< HEAD
                                   ncat,        nblyr,         &
                                   rsiden(1),       vicen_init,    &  !echmod: use rsiden  !CMB this should be sent rsiden
                                   trcrn,                      &
                                   flux_bio,    nbtrcr)
+=======
+                                  rsiden,      vicen_init,    &
+                                  trcrn,       flux_bio)
+>>>>>>> origin/main
             if (icepack_warnings_aborted(subname)) return
 
 
@@ -1176,8 +1220,13 @@
 
                trcrn(nt_fsd:nt_fsd+nfsd-1,:) =  afsdn
 
+<<<<<<< HEAD
                call icepack_cleanup_fsd (ncat, nfsd, trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
                if (icepack_warnings_aborted(subname)) return
+=======
+         call icepack_cleanup_fsd (trcrn(nt_fsd:nt_fsd+nfsd-1,:) )
+         if (icepack_warnings_aborted(subname)) return
+>>>>>>> origin/main
 
                ! diagnostics
                do k = 1, nfsd
@@ -2158,8 +2207,12 @@
                          vsnon,     trcrn,         &
                          flux_bio,                 &
                          d_afsd_latm,              &
+<<<<<<< HEAD
                          floe_rad_c,floe_binwidth, &
                          mipnd)
+=======
+                         floe_rad_c,floe_binwidth)
+>>>>>>> origin/main
       if (icepack_warnings_aborted(subname)) return
 
       ! Floe welding during freezing conditions
