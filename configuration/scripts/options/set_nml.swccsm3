@@ -1,4 +1,3 @@
-ktherm          = 1
 shortwave       = 'ccsm3'
 albedo_type     = 'ccsm3'
 calc_tsfc       = .true.
