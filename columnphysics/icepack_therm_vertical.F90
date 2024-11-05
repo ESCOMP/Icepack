@@ -20,6 +20,7 @@
       module icepack_therm_vertical
 
       use icepack_kinds
+      use icepack_fsd, only: floe_rad_c, floe_binwidth
       use icepack_parameters, only: c0, c1, c2, p001, p5, puny
       use icepack_parameters, only: pi, depressT, Lvap, hs_min, cp_ice, min_salin
       use icepack_parameters, only: cp_ocn, rhow, rhoi, rhos, Lfresh, rhofresh, ice_ref_salinity
@@ -30,7 +31,7 @@
       use icepack_parameters, only: saltflux_option, congel_freeze
       use icepack_parameters, only: icepack_chkoptargflag
 
-      use icepack_tracers, only: ncat, nilyr, nslyr
+      use icepack_tracers, only: ncat, nilyr, nslyr, nfsd
       use icepack_tracers, only: tr_iage, tr_FY, tr_aero, tr_pond, tr_fsd, tr_iso
       use icepack_tracers, only: tr_pond_lvl, tr_pond_topo, tr_pond_sealvl
       use icepack_tracers, only: n_aero, n_iso
@@ -496,8 +497,7 @@
                                         Tbot,     fbot,     &
                                         rsiden,    Cdn_ocn,  &
                                         wlat,      aicen, &
-                                        afsdn,     nfsd,     &
-                                        floe_rad_c, floe_binwidth)
+                                        afsdn)
 
       real (kind=dbl_kind), intent(in) :: &
          dt                  ! time step
@@ -533,18 +533,11 @@
       real (kind=dbl_kind), intent(out), optional :: &
          wlat        ! lateral melt rate (m/s)
 
-      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
-         floe_rad_c     , & ! fsd size bin centre in m (radius)
-         floe_binwidth      ! fsd size bin width in m (radius)
-
-      real (kind=dbl_kind), dimension(:), intent(in), optional :: &
+      real (kind=dbl_kind), dimension(:), intent(in) :: &
          aicen     ! ice concentration
 
       real (kind=dbl_kind), dimension (:,:), intent(in), optional :: &
          afsdn     ! area floe size distribution
-
-      integer (kind=int_kind), intent(in), optional :: &
-         nfsd        ! number of floe size categories
 
       ! local variables
       real (kind=dbl_kind), dimension (ncat) :: &
@@ -639,40 +632,40 @@
 
          if (tr_fsd) then ! alter rsiden now since floes are not of size floediam
 
-         do n = 1, ncat
+            do n = 1, ncat
+               G_radialn(n) = -wlat_loc ! negative
 
-            G_radialn(n) = -wlat_loc ! negative
+               ! afsdn present check up the calling tree
+               if (any(afsdn(:,n) < c0)) then
+                  write(warnstr,*) subname, 'lateral_melt B afsd < 0 ',n
+                  call icepack_warnings_add(warnstr)
+               endif
 
-            if (any(afsdn(:,n) < c0)) then
-               write(warnstr,*) subname, 'lateral_melt B afsd < 0 ',n
-               call icepack_warnings_add(warnstr)
-            endif
+               bin1_arealoss = -afsdn(1,n)  / floe_binwidth(1) ! when scaled by *G_radialn(n)*dt*aicen(n)
 
-            bin1_arealoss = -afsdn(1,n)  / floe_binwidth(1) ! when scaled by *G_radialn(n)*dt*aicen(n)
+               delta_an(n) = c0
+               do k = 1, nfsd
+                  ! this is delta_an(n) when scaled by *G_radialn(n)*dt*aicen(n)
+                  delta_an(n) = delta_an(n) + ((c2/floe_rad_c(k)) * afsdn(k,n)) ! delta_an < 0
+               end do
 
-            delta_an(n) = c0
-            do k = 1, nfsd
-               ! this is delta_an(n) when scaled by *G_radialn(n)*dt*aicen(n)
-               delta_an(n) = delta_an(n) + ((c2/floe_rad_c(k)) * afsdn(k,n)) ! delta_an < 0
-            end do
+               ! add negative area loss from fsd
+               delta_an(n) = (delta_an(n) - bin1_arealoss)*G_radialn(n)*dt
 
-            ! add negative area loss from fsd
-            delta_an(n) = (delta_an(n) - bin1_arealoss)*G_radialn(n)*dt
+               if (delta_an(n) > c0) then
+                  write(warnstr,*) subname, 'ERROR delta_an > 0 ',delta_an(n)
+                  call icepack_warnings_add(warnstr)
+               endif
 
-            if (delta_an(n) > c0) then
-               write(warnstr,*) subname, 'ERROR delta_an > 0 ',delta_an(n)
-               call icepack_warnings_add(warnstr)
-            endif
+               ! following original code, not necessary for fsd
+               if (aicen(n) > c0) rsiden(n) = MIN(-delta_an(n),c1)
 
-            ! following original code, not necessary for fsd
-            if (aicen(n) > c0) rsiden(n) = MIN(-delta_an(n),c1)
+               if (rsiden(n) < c0) then
+                  write(warnstr,*) subname, 'ERROR rsiden < 0 ',rsiden(n)
+                  call icepack_warnings_add(warnstr)
+               endif
+            enddo ! ncat
 
-            if (rsiden(n) < c0) then
-               write(warnstr,*) subname, 'ERROR rsiden < 0 ',rsiden(n)
-               call icepack_warnings_add(warnstr)
-            endif
-
-         enddo ! ncat
          endif ! if tr_fsd
 
       !-----------------------------------------------------------------
@@ -711,8 +704,6 @@
             rsiden(n) = rsiden(n) * xtmp  ! xtmp is almost always 1 so usually nothing happens here
          enddo ! ncat
 
-!         write(warnstr,*) 'FBM ',rsiden(1), xtmp
-!         call icepack_warnings_add(warnstr)
       endif
 
       if (present(wlat)) wlat=wlat_loc
@@ -2218,9 +2209,7 @@
                                     lmask_n     , lmask_s     , &
                                     mlt_onset   , frz_onset   , &
                                     yday        , prescribed_ice, &
-                                    zlvs        , &
-                                    afsdn       , nfsd        , &
-                                    floe_rad_c,   floe_binwidth, &
+                                    zlvs        , afsdn       , &
                                     flpnd       , flpndn      , &
                                     expnd       , expndn      , &
                                     frpnd       , frpndn      , &
@@ -2352,15 +2341,8 @@
          H2_18O_ocn  , & ! ocean concentration of H2_18O      (kg/kg)
          zlvs            ! atm level height for scalars (if different than zlvl) (m)
 
-      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
-         floe_rad_c, &  ! fsd size bin centre in m (radius)
-         floe_binwidth  ! fsd size bin width in m (radius)
-
       real (kind=dbl_kind), dimension(:,:), intent(in), optional :: &
          afsdn        ! afsd tracer
-
-      integer (kind=int_kind), intent(in), optional :: &
-         nfsd         ! number of fsd categories
 
       real (kind=dbl_kind), dimension(:), intent(inout) :: &
          aicen_init  , & ! fractional area of ice
@@ -2526,6 +2508,18 @@
             call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
             return
          endif
+         if (tr_fsd) then
+            if (.not.present(afsdn)) then
+               call icepack_warnings_add(subname//' error missing afsdn argument, tr_fsd=T')
+               call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
+               return
+            endif
+            if (size(afsdn,dim=1) /= nfsd .or. size(afsdn,dim=2) /= ncat) then
+               call icepack_warnings_add(subname//' error size of afsdn argument, tr_fsd=T')
+               call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
+               return
+            endif
+         endif
       endif
 
       !-----------------------------------------------------------------
@@ -2605,11 +2599,10 @@
                                   ustar_min,            &
                                   fbot_xfer_type,       &
                                   strocnxT,  strocnyT,  &
-                                  Tbot,       fbot,     &
-                                  rsiden,     Cdn_ocn,   &
-                                  wlat,       aicen,  &
-                                  afsdn,      nfsd,      &
-                                  floe_rad_c, floe_binwidth)
+                                  Tbot,      fbot,      &
+                                  rsiden,    Cdn_ocn,   &
+                                  wlat,      aicen,     &
+                                  afsdn)
 
       if (icepack_warnings_aborted(subname)) return
 

@@ -20,6 +20,9 @@
       module icepack_therm_itd
 
       use icepack_kinds
+
+      use icepack_fsd, only: floe_rad_c, floe_binwidth
+
       use icepack_parameters, only: c0, c1, c2, c3, c4, c6, c10
       use icepack_parameters, only: p001, p1, p333, p5, p666, puny, bignum
       use icepack_parameters, only: rhos, rhoi, Lfresh, ice_ref_salinity
@@ -880,12 +883,11 @@
                                fresh,      fsalt,      &
                                fhocn,      faero_ocn,  &
                                fiso_ocn,               &
-                               rsiden,      meltl,     &
+                               rsiden,     meltl,      &
                                wlat,                   &
                                aicen,      vicen,      &
                                vsnon,      trcrn,      &
                                flux_bio,   d_afsd_latm,&
-                               floe_rad_c, floe_binwidth, &
                                mipnd)
 
       real (kind=dbl_kind), intent(in) :: &
@@ -921,10 +923,6 @@
 
       real (kind=dbl_kind), dimension(:), intent(inout), optional :: &
          fiso_ocn     ! isotope flux to ocean (kg/m^2/s)
-
-      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
-         floe_rad_c     , & ! fsd size bin centre in m (radius)
-         floe_binwidth      ! fsd size bin width in m (radius)
 
       real (kind=dbl_kind), dimension (:), intent(out), optional :: &
          d_afsd_latm        ! change in fsd due to lateral melt (m)
@@ -972,9 +970,6 @@
       if (tr_fsd) d_afsd_latm = c0
 
       if (.not. any(rsiden(:) > c0)) return  ! no lateral melt, get out now
-
-!      write(warnstr,*) 'LM ',rsiden(1)
-!      call icepack_warnings_add(warnstr)
 
       dfhocn   = c0
       dfpond   = c0
@@ -1030,9 +1025,6 @@
             fpond  = fpond - dfpond
          endif
 
-         ! history diagnostics
-         meltl = meltl + vicen_init(n)*rsiden(n)
-
          if (tr_pond) then
             if (tr_pond_lvl) then
                mipnd = mipnd + aicen(n)*trcrn(nt_apnd,n)*trcrn(nt_hpnd,n) &
@@ -1043,6 +1035,9 @@
             endif
          endif
 
+         ! history diagnostics
+         meltl = meltl + vicen_init(n)*rsiden(n)
+
          ! state variables
          aicen(n) = aicen(n) * (c1 - rsiden(n))
          vicen(n) = vicen(n) * (c1 - rsiden(n))
@@ -1051,7 +1046,8 @@
          ! floe size distribution
          if (tr_fsd) then
             if (rsiden(n) > puny) then
-               if (aicen(n) > puny) then    ! not sure if this should be aicen or aicen_init
+               if (aicen(n) > puny) then
+
                   ! adaptive subtimestep
                   elapsed_t = c0
                   afsd_tmp(:) = afsdn_init(:,n)
@@ -1127,22 +1123,21 @@
 
          if (tr_aero) then
             do k = 1, n_aero
-               faero_ocn(k) = faero_ocn(k) + (vsnon_init(n) &
-                    *(trcrn(nt_aero  +4*(k-1),n)   &
-                    + trcrn(nt_aero+1+4*(k-1),n))  &
-                    +  vicen_init(n) &
-                    *(trcrn(nt_aero+2+4*(k-1),n)   &
-                    + trcrn(nt_aero+3+4*(k-1),n))) &
-                    * rsiden(n) / dt
+               faero_ocn(k) = faero_ocn(k) &
+                            + (vsnon_init(n) * (trcrn(nt_aero  +4*(k-1),n)   &
+                                             +  trcrn(nt_aero+1+4*(k-1),n))  &
+                            +  vicen_init(n) * (trcrn(nt_aero+2+4*(k-1),n)   &
+                                             +  trcrn(nt_aero+3+4*(k-1),n))) &
+                            * rsiden(n) / dt
             enddo ! k
          endif    ! tr_aero
 
          if (tr_iso) then
             do k = 1, n_iso
                fiso_ocn(k) = fiso_ocn(k) &
-                    + (vsnon_init(n)*trcrn(nt_isosno+k-1,n) &
-                    +  vicen_init(n)*trcrn(nt_isoice+k-1,n)) &
-                    * rsiden(n) / dt
+                           + (vsnon_init(n)*trcrn(nt_isosno+k-1,n)  &
+                           +  vicen_init(n)*trcrn(nt_isoice+k-1,n)) &
+                           * rsiden(n) / dt
             enddo ! k
          endif    ! tr_iso
 
@@ -1195,7 +1190,6 @@
 
             end if
 
-
       end subroutine lateral_melt
 
 !=======================================================================
@@ -1241,8 +1235,7 @@
                               wavefreq,              &
                               dwavefreq,             &
                               d_afsd_latg,           &
-                              d_afsd_newi,           &
-                              floe_rad_c, floe_binwidth)
+                              d_afsd_newi)
 
       use icepack_fsd, only: fsd_lateral_growth, fsd_add_new_ice
 
@@ -1315,10 +1308,6 @@
       real(kind=dbl_kind), dimension(:), intent(in), optional :: &
          wavefreq,              & ! wave frequencies (s^-1)
          dwavefreq                ! wave frequency bin widths (s^-1)
-
-      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
-         floe_rad_c     , & ! fsd size bin centre in m (radius)
-         floe_binwidth      ! fsd size bin width in m (radius)
 
       real (kind=dbl_kind), dimension(:), intent(out), optional :: &
                             ! change in thickness distribution (area)
@@ -1548,7 +1537,7 @@
             call fsd_lateral_growth(dt,       aice,         &
                                   aicen,      vicen,        &
                                   vi0new,     frazil,       &
-                                  floe_rad_c, afsdn,        &
+                                  afsdn,        &
                                   lead_area,  latsurf_area, &
                                   G_radial,   d_an_latg,    &
                                   tot_latg)
@@ -1564,10 +1553,11 @@
             ! check lateral growth doesn't exceed total growth
             ! if it does, adjust it
             if (SUM(vin0new)>vi0new) then
+                write(warnstr,*) subname,'lateral growth warning ',vi0new,SUM(vin0new)
+                call icepack_warnings_add(warnstr)
                 vin0new(:) = vin0new(:)*vi0new/SUM(vin0new)
             end if
 
-            ! remove the new ice created by lateral growth
             vi0new = vi0new - SUM(vin0new)
             frazil = frazil - SUM(vin0new)
 
@@ -1596,11 +1586,6 @@
             hsurp = vi0new/aice ! new thickness in each cat
             vi0new = c0
          endif               ! aice0 > puny
-
-         ! volume added to each category from lateral growth
-!        do n = 1, ncat
-!           if (aicen(n) > c0) vin0new(n) = d_an_latg(n) * vicen(n)/aicen(n)
-!        end do
 
          ! combine areal change from new ice growth and lateral growth
          d_an_newi(1)     = ai0new
@@ -1748,7 +1733,6 @@
             call fsd_add_new_ice (n,                         &
                                   dt,         ai0new,        &
                                   d_an_latg,  d_an_newi,     &
-                                  floe_rad_c, floe_binwidth, &
                                   G_radial,   area2,         &
                                   wave_sig_ht,               &
                                   wave_spectrum,             &
@@ -1910,7 +1894,6 @@
                                      dwavefreq,                   &
                                      d_afsd_latg,  d_afsd_newi,   &
                                      d_afsd_latm,  d_afsd_weld,   &
-                                     floe_rad_c,   floe_binwidth, &
                                      mipnd)
 
       use icepack_parameters, only: icepack_init_parameters
@@ -2009,10 +1992,6 @@
          d_afsd_latm, & ! lateral melt
          d_afsd_weld    ! welding
 
-      real (kind=dbl_kind), dimension (:), intent(in), optional :: &
-         floe_rad_c, &  ! fsd size bin centre in m (radius)
-         floe_binwidth  ! fsd size bin width in m (radius)
-
 !autodocument_end
 
       ! local variables
@@ -2049,9 +2028,7 @@
                        present(d_afsd_latg)   .and. &
                        present(d_afsd_newi)   .and. &
                        present(d_afsd_latm)   .and. &
-                       present(d_afsd_weld)   .and. &
-                       present(floe_rad_c)    .and. &
-                       present(floe_binwidth))) then
+                       present(d_afsd_weld))) then
                 call icepack_warnings_add(subname//' error in FSD arguments, tr_fsd=T')
                 call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
                 return
@@ -2137,8 +2114,7 @@
                            wave_sig_ht,                 &
                            wave_spectrum,               &
                            wavefreq,      dwavefreq,    &
-                           d_afsd_latg,   d_afsd_newi,  &
-                           floe_rad_c, floe_binwidth)
+                           d_afsd_latg,   d_afsd_newi)
 
          if (icepack_warnings_aborted(subname)) return
 
@@ -2150,14 +2126,12 @@
                          fresh,     fsalt,         &
                          fhocn,     faero_ocn,     &
                          fiso_ocn,                 &
-                         rsiden,     meltl,        &
+                         rsiden,    meltl,         &
                          wlat,                     &
                          aicen,     vicen,         &
                          vsnon,     trcrn,         &
                          flux_bio,                 &
-                         d_afsd_latm,              &
-                         floe_rad_c,floe_binwidth, &
-                         mipnd)
+                         d_afsd_latm, mipnd)
       if (icepack_warnings_aborted(subname)) return
 
       ! Floe welding during freezing conditions
