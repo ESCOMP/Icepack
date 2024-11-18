@@ -49,7 +49,6 @@
                   dt,                                        &
                   nfreq,                                     &
                   aice,          vice,            aicen,     &
-                  floe_rad_l,    floe_rad_c,                 &
                   wave_spectrum, wavefreq,        dwavefreq, &
                   trcrn,         d_afsd_wave)
 
@@ -67,10 +66,6 @@
 
       real (kind=dbl_kind), dimension(ncat), intent(in) :: &
          aicen           ! ice area fraction (categories)
-
-      real(kind=dbl_kind), dimension(:), intent(in) ::  &
-         floe_rad_l,   & ! fsd size lower bound in m (radius)
-         floe_rad_c      ! fsd size bin centre in m (radius)
 
       real (kind=dbl_kind), dimension (:), intent(in) :: &
          wavefreq,     & ! wave frequencies (s^-1)
