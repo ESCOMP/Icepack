@@ -11,14 +11,13 @@
   use icepack_parameters, only: aspect_rapid_mode, dSdt_slow_mode, phi_c_slow_mode
   use icepack_parameters, only: sw_redist, sw_frac, sw_dtemp
   use icepack_parameters, only: pndmacr
-  use icepack_tracers, only: nilyr, nslyr, tr_pond
+  use icepack_tracers, only: nilyr, nslyr, tr_pond, tr_pond_sealvl
   use icepack_mushy_physics, only: icepack_mushy_density_brine, enthalpy_brine, icepack_enthalpy_snow
   use icepack_mushy_physics, only: enthalpy_mush_liquid_fraction
   use icepack_mushy_physics, only: icepack_mushy_temperature_mush, icepack_mushy_liquid_fraction
   use icepack_mushy_physics, only: temperature_snow, temperature_mush_liquid_fraction
   use icepack_mushy_physics, only: liquidus_brine_salinity_mush, liquidus_temperature_mush
   use icepack_mushy_physics, only: conductivity_mush_array, conductivity_snow_array
-  use icepack_tracers, only: tr_pond, tr_pond_lvl, tr_pond_sealvl
   use icepack_therm_shared, only: surface_heat_flux, dsurface_heat_flux_dTsf
   use icepack_therm_shared, only: ferrmax
   use icepack_meltpond_sealvl, only: pond_hypsometry, pond_height
@@ -49,7 +48,7 @@
                                           fswsfc,   fswint,   &
                                           Sswabs,   Iswabs,   &
                                           hilyr,    hslyr,    &
-                                          apnd,     hpond,    &
+                                          apond,     hpond,   &
                                           zqin,     zTin,     &
                                           zqsn,     zTsn,     &
                                           zSin,               &
@@ -60,8 +59,7 @@
                                           fcondtop, fcondbot, &
                                           fadvheat, snoice,   &
                                           smice,    smliq,    &
-                                          flpnd,    expnd,    &
-                                          alvl)
+                                          flpnd,    expnd)
 
     ! solve the enthalpy and bulk salinity of the ice for a single column
 
@@ -76,8 +74,7 @@
          shcoef      , & ! transfer coefficient for sensible heat
          lhcoef      , & ! transfer coefficient for latent heat
          Tbot        , & ! ice bottom surfce temperature (deg C)
-         sss         , & ! sea surface salinity (PSU)
-         alvl            ! level ice fraction
+         sss             ! sea surface salinity (PSU)
 
     real (kind=dbl_kind), intent(inout) :: &
          fswsfc      , & ! SW absorbed at ice/snow surface (W m-2)
@@ -193,9 +190,8 @@
     call flushing_velocity(zTin,   phi,   &
                            hin,    hsn,   &
                            hilyr,         &
-                           hpond,  apnd,  &
-                           dt,     w,     &
-                           alvl=alvl)
+                           hpond,  apond, &
+                           dt,     w)
     if (icepack_warnings_aborted(subname)) return
 
     ! calculate quantities related to drainage
@@ -339,7 +335,7 @@
     endif
 
     ! drain ponds from flushing
-    call flush_pond(w, hpond, apnd, dt, flpnd, expnd, alvl, nilyr, &
+    call flush_pond(w, hpond, apond, dt, flpnd, expnd, &
                         zTin, phi, hilyr, hin, hsn)
     if (icepack_warnings_aborted(subname)) return
 
@@ -3077,9 +3073,8 @@
   subroutine flushing_velocity(zTin,   phi,   &
                                hin,    hsn,   &
                                hilyr,         &
-                               hpond,  apnd,  &
-                               dt,     w,     &
-                               alvl)
+                               hpond,  apond,  &
+                               dt,     w)
 
     ! calculate the vertical flushing Darcy velocity (positive downward)
 
@@ -3097,9 +3092,6 @@
 
     real(kind=dbl_kind), intent(out) :: &
          w             ! vertical flushing Darcy flow rate (m s-1)
-
-    real(kind=dbl_kind), intent(in), optional :: &
-          alvl         ! level area fraction for the category
 
     real(kind=dbl_kind), parameter :: &
          advection_limit = 0.005_dbl_kind ! limit to fraction of brine in
@@ -3127,7 +3119,7 @@
     ! only flush if ponds are active
     if (tr_pond) then
 
-       call calc_ice_mass(nilyr, phi, zTin, hilyr, ice_mass)
+       call calc_ice_mass(phi, zTin, hilyr, ice_mass)
        perm_harm = c0
        phi_min   = c1
 
@@ -3151,11 +3143,7 @@
        hocn = (ice_mass + hpond * apond * rhofresh + hsn * rhos) / rhow
 
        ! calculate brine height above bottom of ice
-       if (tr_pond_lvl) then
-          call pond_height(apnd*alvl, hpond, hin, hbrine)
-       else
-          call pond_height(apnd, hpond, hin, hbrine)
-       endif
+       call pond_height(apond, hpond, hin, hbrine)
 
        ! pressure head
        dhhead = max(hbrine - hocn,c0)
@@ -3164,7 +3152,7 @@
        w = (perm_harm * rhow * gravit * (dhhead / hin)) / viscosity_dyn
 
        ! maximum down flow to drain pond
-       w_down_max = (hpond * apnd) / dt
+       w_down_max = (hpond * apond) / dt
 
        ! limit flow
        w = min(w,w_down_max)
@@ -3186,7 +3174,7 @@
 
 !=======================================================================
 
-  subroutine flush_pond(w, hpond, apnd, dt, flpnd, expnd, alvl, nilyr, &
+  subroutine flush_pond(w, hpond, apond, dt, flpnd, expnd, &
                         zTin, phi, hilyr, hin, hsn)
 
     ! given a flushing velocity drain the meltponds
@@ -3198,12 +3186,11 @@
 
     real(kind=dbl_kind), intent(inout) :: &
          hpond , & ! melt pond thickness (m)
-         apnd  , & ! melt pond area tracer (-)
+         apond , & ! melt pond area fraction of category (-)
          flpnd , & ! pond flushing rate due to ice permeability (m/s)
          expnd     ! exponential pond drainage rate (m/s)
      
     real(kind=dbl_kind) :: &
-         apond    , & ! pond fraction of category (incl. deformed ice)
          dhpond   , & ! change in pond depth per unit pond area (m)
          ice_mass , & ! mass of ice (kg m-2)
          hocn     , & ! height of ocean above mean base of ice (m)
@@ -3219,23 +3206,19 @@
     character(len=*),parameter :: subname='(flush_pond)'
 
     if (tr_pond) then
-       if (apnd > c0 .and. hpond > c0) then
+       if (apond > c0 .and. hpond > c0) then
           !-------------------------------------------------------------
           ! flush pond through mush (percolation drainage)
           !-------------------------------------------------------------
-          dhpond = max(-w * dt / apnd, -hpond)
-          ! account for difference between apnd tracer and area fraction
-          if (tr_pond_lvl) then
-               flpnd = -dhpond * apnd * alvl
-          else
-               flpnd = -dhpond * apnd
-          endif
+          dhpond = max(-w * dt / apond, -hpond)
+          flpnd = -dhpond * apond
           ! update pond depth (and area)
           if (tr_pond_sealvl) then
-               call pond_hypsometry(hpond, apnd, dhpond=dhpond, hin=hin)
+               call pond_hypsometry(hpond, apond, dhpond=dhpond, hin=hin)
           else
-               hpond = hpond + dhpond
+               hpond = hpond - w * dt / apond
           endif
+          hpond = max(hpond, c0)
 
           !-------------------------------------------------------------          
           ! exponential decay of pond (macro-flaw drainage)
@@ -3245,15 +3228,9 @@
           if (trim(pndmacr) == 'lambda') then
                dhpond = max(-lambda_pond*dt*(hpond + hpond0),-hpond)
           elseif (trim(pndmacr) == 'head') then
-               call calc_ice_mass(nilyr, phi, zTin, hilyr, ice_mass)
-               if (tr_pond_lvl) then
-                  hocn = (ice_mass + hpond*apnd*alvl*rhofresh + hsn &
-                     *rhos)/rhow
-               else
-                  hocn = (ice_mass + hpond*apnd*rhofresh + hsn*rhos) &
-                     /rhow
-               endif
-               call pond_height(apnd, hpond, hin, hpsurf)
+               call calc_ice_mass(phi, zTin, hilyr, ice_mass)
+               hocn = (ice_mass + hpond*apond*rhofresh + hsn*rhos)/rhow
+               call pond_height(apond, hpond, hin, hpsurf)
                head = hpsurf - hocn
                dhpond = max(min(c0, -lambda_pond*dt*head), -hpond)
           else
@@ -3261,18 +3238,21 @@
                call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
                if (icepack_warnings_aborted(subname)) return
           endif
-          ! Same logic as above for flpnd
-          if (tr_pond_lvl) then
-               expnd = -dhpond * apnd * alvl
-          else
-               expnd = -dhpond * apnd
-          endif
+          ! diagnostic drainage rate
+          expnd = -dhpond * apond
           ! update pond depth (and area)
           if (tr_pond_sealvl) then
-               call pond_hypsometry(hpond, apnd, dhpond=dhpond, hin=hin)
+               call pond_hypsometry(hpond, apond, dhpond=dhpond, hin=hin)
           else
-               hpond = hpond + dhpond
+               if (trim(pndmacr) == 'lambda') then
+                  hpond = hpond - lambda_pond * dt * (hpond + hpond0)
+               else
+                  call icepack_warnings_add(subname//" currently only pondmacr='lambda' supported for not sealvlponds" )
+                  call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
+                  if (icepack_warnings_aborted(subname)) return
+               endif
           endif
+          hpond = max(hpond, c0)
        endif
     endif
 
@@ -3645,12 +3625,9 @@
 ! Ice Mass
 !=======================================================================
 
-  subroutine calc_ice_mass(nilyr, phi, zTin, hilyr, ice_mass)
+  subroutine calc_ice_mass(phi, zTin, hilyr, ice_mass)
      
      ! Calculate the mass of the ice per unit category area
-     integer (kind=int_kind), intent(in) :: &
-          nilyr         ! number of ice layers
-
      real(kind=dbl_kind), dimension(:), intent(in) :: &
           zTin      , & ! ice layer temperature (C)
           phi           ! ice layer liquid fraction

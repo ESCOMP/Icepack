@@ -25,9 +25,10 @@
       use icepack_parameters, only: viscosity_dyn, rhoi, rhos, rhow 
       use icepack_parameters, only: Timelt, Tffresh, Lfresh, rhofresh
       use icepack_parameters, only: gravit, depressT, rhofresh, kice
-      use icepack_parameters, only: rhosi, pndaspect, use_smliq_pnd
+      use icepack_parameters, only: rhosi, use_smliq_pnd
       use icepack_parameters, only: ktherm, frzpnd, dpscale, hi_min
       use icepack_parameters, only: pndhyps, pndfrbd, pndhead, apnd_sl
+      use icepack_parameters, only: pndaspect
       use icepack_tracers,    only: nilyr
       use icepack_warnings,   only: warnstr, icepack_warnings_add
       use icepack_warnings,   only: icepack_warnings_setabort
@@ -348,8 +349,9 @@
       
       real (kind=dbl_kind) :: &
          dv, &     ! local variable for change in pond volume
-         vp        ! local variable for pond volume per category area
-      
+         vp, &     ! local variable for pond volume per category area
+         pndasp    ! pond aspect ratio
+
       character(len=*),parameter :: subname='(pond_hypsometry)'
 
       ! Behavior is undefined if dhpond and dvpond are both present
@@ -388,12 +390,21 @@
          apnd = c0
          hpnd = c0
       else
-         call calc_pndaspect(hin)
-         apnd = sqrt(vp/pndaspect)
+         if (trim(pndhyps) == 'sealevel') then
+            pndasp = calc_pndasp(hin)
+         elseif (trim(pndhyps) == 'fixed') then
+            pndasp = pndaspect
+         else
+            call icepack_warnings_add(subname// &
+               " unsupported pndhyps option" )
+            call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
+            if (icepack_warnings_aborted(subname)) return
+         endif
+         apnd = sqrt(vp/pndasp)
          ! preserve pond volume if pond fills all available area
          hpnd = c0
          if (apnd < c1) then
-            hpnd = apnd * pndaspect
+            hpnd = apnd * pndasp
          else
             apnd = 1 ! ponds fill entire category
             hpnd = vp ! conserve volume
@@ -415,6 +426,10 @@
    
          real (kind=dbl_kind), intent(out) :: &
             hpsurf   ! height of pond surface above base of the ice (m)
+
+         ! local variables
+         real (kind=dbl_kind) :: &
+            pndasp   ! pond aspect ratio
          
          character(len=*),parameter :: subname='(pond_height)'
    
@@ -427,9 +442,13 @@
                ! assumes that the hypsometric curve has a constant slope
                ! of double the aspect ratio.
                ! If ponds occupy lowest elevations first. 
-               call calc_pndaspect(hin)
+               if (trim(pndhyps) == 'sealevel') then
+                  pndasp = calc_pndasp(hin)
+               else
+                  pndasp = pndaspect
+               endif
                if (apond < c1) then
-                  hpsurf = hin - pndaspect + c2*pndaspect*apond
+                  hpsurf = hin - pndasp + c2*pndasp*apond
                else ! ponds cover all available area
                   hpsurf = hin + hpnd
                endif
@@ -450,26 +469,22 @@
 
 !=======================================================================
 
-      subroutine calc_pndaspect(hin)
+      function calc_pndasp(hin) &
+                           result(pndasp)
 
-         real (kind=dbl_kind), intent(in), optional :: &
+         real (kind=dbl_kind), intent(in) :: &
             hin   ! category mean ice thickness (m)
 
-         character(len=*),parameter :: subname='(sealevel_pndaspect)'
+         real (kind=dbl_kind) :: &
+            pndasp ! pond aspect ratio
+
+         character(len=*),parameter :: subname='(calc_pndasp)'
 
          ! Compute the pond aspect ratio for sea level ponds
-         if (trim(pndhyps) == 'sealevel') then
-            if (.not. present(hin)) then
-               call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
-               call icepack_warnings_add(subname// &
-                  " hin needed for sealevel ponds")
-               return
-            endif
-            pndaspect = hin*(rhow - rhosi) / &
-               (rhofresh*apnd_sl**c2 - c2*rhow*apnd_sl + rhow)
-         endif ! Otherwise do nothing to pond aspect
+         pndasp = hin*(rhow - rhosi) / &
+            (rhofresh*apnd_sl**c2 - c2*rhow*apnd_sl + rhow)
 
-      end subroutine calc_pndaspect
+      end function calc_pndasp
 
    end module icepack_meltpond_sealvl
 !=======================================================================

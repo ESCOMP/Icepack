@@ -107,8 +107,7 @@
                                   mlt_onset,   frz_onset, &
                                   yday,        dsnow,     &
                                   prescribed_ice,         &
-                                  flpnd,       expnd,     &
-                                  alvl)
+                                  flpnd,       expnd)
 
       real (kind=dbl_kind), intent(in) :: &
          dt      , & ! time step
@@ -269,8 +268,10 @@
       meltsliq= c0
       massice(:) = c0
       massliq(:) = c0
-      flpnd   = c0
-      expnd   = c0
+      if (tr_pond) then
+         flpnd   = c0
+         expnd   = c0
+      endif
 
       if (calc_Tsfc) then
          fsensn  = c0
@@ -330,8 +331,7 @@
                                               fcondtopn, fcondbotn, &
                                               fadvocn,   snoice,    &
                                               smice,     smliq,     &
-                                              flpnd,     expnd,    &
-                                              alvl)
+                                              flpnd,     expnd)
             if (icepack_warnings_aborted(subname)) return
 
          else ! ktherm
@@ -2298,7 +2298,9 @@
          melts       , & ! snow melt                (m/step-->cm/day)
          meltb       , & ! basal ice melt           (m/step-->cm/day)
          mlt_onset   , & ! day of year that sfc melting begins
-         frz_onset   , & ! day of year that freezing begins (congel or frazil)
+         frz_onset       ! day of year that freezing begins (congel or frazil)
+
+      real (kind=dbl_kind), intent(inout), optional :: &
          flpnd       , & ! pond flushing rate due to ice permeability (m/step)
          expnd       , & ! exponential pond drainage rate (m/step)
          frpnd       , & ! pond drainage rate due freeboard constraint (m/step)
@@ -2378,7 +2380,9 @@
          melttn      , & ! top ice melt                           (m)
          meltbn      , & ! bottom ice melt                        (m)
          congeln     , & ! congelation ice growth                 (m)
-         snoicen     , & ! snow-ice growth                        (m)
+         snoicen         ! snow-ice growth                        (m)
+
+      real (kind=dbl_kind), dimension(:), intent(inout), optional :: &
          flpndn      , & ! category pond flushing rate          (m/step)
          expndn      , & ! exponential pond drainage rate       (m/step)
          frpndn      , & ! pond drainage rate due to freeboard  (m/step)
@@ -2634,11 +2638,13 @@
          meltbn (n) = c0
          congeln(n) = c0
          snoicen(n) = c0
-         flpndn (n) = c0
-         expndn (n) = c0
-         frpndn (n) = c0
-         rfpndn (n) = c0
-         ilpndn (n) = c0
+         if (tr_pond) then
+            flpndn (n) = c0
+            expndn (n) = c0
+            frpndn (n) = c0
+            rfpndn (n) = c0
+            ilpndn (n) = c0
+         endif
          l_dsnown   = c0
 
          Trefn  = c0
@@ -2767,8 +2773,7 @@
                                  mlt_onset=mlt_onset, frz_onset=frz_onset,     &
                                  yday=yday,           dsnow=l_dsnown         , &
                                  prescribed_ice=prescribed_ice,                &
-                                 flpnd=flpndn    (n), expnd=expndn        (n), &
-                                 alvl=alvl       (n))
+                                 flpnd=flpndn    (n), expnd=expndn        (n))
 
             if (icepack_warnings_aborted(subname)) then
                write(warnstr,*) subname, ' ice: Vertical thermo error, cat ', n
