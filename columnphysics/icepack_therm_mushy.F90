@@ -5,8 +5,8 @@
   use icepack_kinds
   use icepack_parameters, only: c0, c1, c2, c8, c10
   use icepack_parameters, only: p01, p05, p1, p2, p5, pi, bignum, puny
-  use icepack_parameters, only: viscosity_dyn, rhow, rhoi, rhos, cp_ocn, cp_ice, Lfresh, gravit
-  use icepack_parameters, only: hs_min, snwgrain, rhofresh
+  use icepack_parameters, only: viscosity_dyn, rhow, rhoi, rhos, cp_ocn, cp_ice, Lfresh, gravit, rhofresh
+  use icepack_parameters, only: hs_min, snwgrain
   use icepack_parameters, only: a_rapid_mode, Rac_rapid_mode, tscale_pnd_drain
   use icepack_parameters, only: aspect_rapid_mode, dSdt_slow_mode, phi_c_slow_mode
   use icepack_parameters, only: sw_redist, sw_frac, sw_dtemp
@@ -86,7 +86,7 @@
     real (kind=dbl_kind), intent(inout) :: &
          hilyr       , & ! ice layer thickness (m)
          hslyr       , & ! snow layer thickness (m)
-         apnd        , & ! melt pond area fraction tracer
+         apond       , & ! melt pond area fraction of category
          hpond           ! melt pond depth (m)
 
     real (kind=dbl_kind), dimension (:), intent(inout) :: &
@@ -3090,7 +3090,7 @@
     real(kind=dbl_kind), intent(in) :: &
          hilyr     , & ! ice layer thickness (m)
          hpond     , & ! melt pond thickness (m)
-         apnd      , & ! melt pond area tracer (-)
+         apond     , & ! melt pond area fraction of category (-)
          hsn       , & ! snow thickness (m)
          hin       , & ! ice thickness (m)
          dt            ! time step (s)
@@ -3148,11 +3148,7 @@
        perm_harm = real(nilyr,dbl_kind) / perm_harm
 
        ! calculate ocean surface height above bottom of ice
-       if (tr_pond_lvl) then
-          hocn = (ice_mass + hpond*apnd*rhofresh*alvl + hsn*rhos) / rhow
-       else
-          hocn = (ice_mass + hpond*apnd*rhofresh + hsn*rhos) / rhow
-       endif
+       hocn = (ice_mass + hpond * apond * rhofresh + hsn * rhos) / rhow
 
        ! calculate brine height above bottom of ice
        if (tr_pond_lvl) then
@@ -3197,18 +3193,8 @@
 
     real(kind=dbl_kind), intent(in) :: &
          w     , & ! vertical flushing Darcy flow rate (m s-1)
-         dt    , & ! time step (s)
-         alvl  , & ! level ice fraction (-)
-         hilyr , & ! ice layer thickness (m)
-         hin   , & ! ice thickness (m)
-         hsn       ! snow thickness (m)
-
-    integer (kind=int_kind), intent(in) :: &
-         nilyr         ! number of ice layers
-
-    real(kind=dbl_kind), dimension(:), intent(in) :: &
-         zTin      , & ! ice layer temperature (C)
-         phi           ! ice layer liquid fraction
+         apond , & ! melt pond area fraction of category (-)
+         dt        ! time step (s)
 
     real(kind=dbl_kind), intent(inout) :: &
          hpond , & ! melt pond thickness (m)
