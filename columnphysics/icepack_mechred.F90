@@ -1751,12 +1751,7 @@
                                     aice,         fsalt,         &
                                     first_ice,    fzsal,         &
                                     flux_bio,     closing,       &
-<<<<<<< HEAD
-                                    Tf,                          &
-                                    rdpnd,                       &
-=======
                                     Tf,           rdpnd,         &
->>>>>>> origin/sealevelponds
                                     docleanup,    dorebin)
 
       real (kind=dbl_kind), intent(in) :: &
