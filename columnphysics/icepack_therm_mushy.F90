@@ -3179,10 +3179,16 @@
 
     ! given a flushing velocity drain the meltponds
 
-    real(kind=dbl_kind), intent(in) :: &
+   real(kind=dbl_kind), intent(in) :: &
          w     , & ! vertical flushing Darcy flow rate (m s-1)
-         apond , & ! melt pond area fraction of category (-)
-         dt        ! time step (s)
+         dt    , & ! time step (s)
+         hilyr , & ! ice layer thickness (m)
+         hin   , & ! ice thickness (m)
+         hsn       ! snow thickness (m)
+
+    real(kind=dbl_kind), dimension(:), intent(in) :: &
+         zTin      , & ! ice layer temperature (C)
+         phi           ! ice layer liquid fraction
 
     real(kind=dbl_kind), intent(inout) :: &
          hpond , & ! melt pond thickness (m)
