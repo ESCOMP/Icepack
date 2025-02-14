@@ -263,7 +263,7 @@
 !      if ((aice > p01).and.(MAXVAL(wave_spectrum(:)) > puny)) then
       if ((aice > p01).and.(local_sig_ht>0.1_dbl_kind)) then
 
-         !hbar = vice / aice
+         hbar = vice / aice
          ! calculate fracture histogram
          call wave_frac(nfreq, wave_spec_type, &
                         wavefreq, dwavefreq, &
