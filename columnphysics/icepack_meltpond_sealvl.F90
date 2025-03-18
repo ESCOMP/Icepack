@@ -222,10 +222,11 @@
             call pond_hypsometry(hpnd, apnd, dvpond=dvpondn, hin=hi)
 
             ! limit pond depth to maintain nonnegative freeboard
+            dhpond = c0
             if (trim(pndfrbd) == 'floor') then
                dhpond = ((rhow-rhoi)*hi - rhos*hs)/rhofresh - hpnd
             elseif (trim(pndfrbd) == 'category') then
-               dhpond = ((rhow-rhoi)*hi-rhos*hs)/(rhofresh*apnd) &
+               if (apnd > puny) dhpond = ((rhow-rhoi)*hi-rhos*hs)/(rhofresh*apnd) &
                   - hpnd
             else
                call icepack_warnings_add(subname// &
