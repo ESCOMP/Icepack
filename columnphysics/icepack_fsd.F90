@@ -874,7 +874,7 @@
 !  authors: Lettie Roach, NIWA/VUW
 !
 
-      subroutine fsd_weld_thermo (dt,    frzmlt, &
+      subroutine fsd_weld_thermo (dt,    frzmlt, Tair, &
                                   aicen, trcrn,  &
                                   d_afsd_weld)
 
@@ -885,6 +885,7 @@
          aicen          ! ice concentration
 
       real (kind=dbl_kind), intent(in) :: &
+         Tair,        & ! air temperature
          frzmlt         ! freezing/melting potential (W/m^2)
 
       real (kind=dbl_kind), dimension (:,:), intent(inout) :: &
@@ -943,7 +944,7 @@
 
          ! If there is some ice in the lower (nfsd-1) categories
          ! and there is freezing potential
-         if ((frzmlt > puny) .and. &               ! freezing potential
+         if ((frzmlt > puny .or. Tair < 263.15d0) .and. &               ! freezing potential
              (aicen(n) > aminweld) .and. &         ! low concentrations unlikely to weld
              (SUM(afsdn(1:nfsd-1,n)) > puny)) then ! some ice in nfsd-1 categories
 

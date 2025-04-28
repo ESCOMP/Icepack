@@ -994,6 +994,8 @@
          aicen_init  = aicen
          afsdn       = trcrn(nt_fsd:nt_fsd+nfsd-1,:)
          afsdn_init  = afsdn ! for diagnostics
+         afsd_tmp    = c0
+         d_afsd_tmp  = c0
          df_flx      = c0
          f_flx       = c0
       end if
@@ -1873,7 +1875,7 @@
                                      trcr_depend,                 &
                                      trcr_base,    n_trcr_strata, &
                                      nt_strata,                   &
-                                     Tf,           sss,           &
+                                     Tf,           sss,  Tair,    &
                                      salinz,                      &
                                      rsiden,       meltl,         &
                                      wlat,                        &
@@ -1907,6 +1909,7 @@
       real (kind=dbl_kind), intent(in) :: &
          dt       , & ! time step
          Tf       , & ! freezing temperature (C)
+         Tair     , & ! air temperature (K)
          sss      , & ! sea surface salinity (ppt)
          frzmlt       ! freezing/melting potential (W/m^2)
 
@@ -1936,9 +1939,7 @@
          fhocn    , & ! net heat flux to ocean (W/m^2)
          meltl    , & ! lateral ice melt         (m/step-->cm/day)
          frazil   , & ! frazil ice growth        (m/step-->cm/day)
-         frazil_diag  ! frazil ice growth diagnostic (m/step-->cm/day)
-
-      real (kind=dbl_kind), intent(inout), optional :: &
+         frazil_diag, &  ! frazil ice growth diagnostic (m/step-->cm/day)
          mipnd        ! pond 'drainage' due to ice melting (m / step)
 
       real (kind=dbl_kind), intent(inout), optional :: &
@@ -2138,7 +2139,7 @@
 
       ! Floe welding during freezing conditions
       if (tr_fsd) then
-         call fsd_weld_thermo (dt,    frzmlt, &
+         call fsd_weld_thermo (dt,    frzmlt, Tair, &
                                aicen, trcrn,  &
                                d_afsd_weld)
          if (icepack_warnings_aborted(subname)) return
