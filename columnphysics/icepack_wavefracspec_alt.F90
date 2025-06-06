@@ -29,7 +29,7 @@
       real (kind=dbl_kind), parameter  :: &
          young_mod  = 10e9, &          ! Youngs Modulus for ice (Pa)
          straincrit = 3.e-5_dbl_kind, & ! critical strain
-         dx = 0.5_dbl_kind ! domain spacing (m)
+         dx = c4 !0.5_dbl_kind ! domain spacing (m)
 
 !=======================================================================
 
@@ -121,14 +121,14 @@
 
           hbar = vice/aice ! note- average thickness
           DO k = 2, nfsd
-              if (.NOT. ALL(trcrn(nt_fsd+k-1,:).ge.c1-puny)) then
+              ! if this floe size class (avg across thickness) has ice
+              if (SUM(trcrn(nt_fsd+k-1,:))/ncat.gt.puny) then
                   call solve_yt_for_strain(nfsd, nfreq, & 
                                floe_rad_l, floe_rad_c, &
                                wavefreq, dwavefreq, &
                                c2*floe_rad_c(k), &
                                hbar, wave_spectrum, & 
                                fracture_hist(k,:))
- 
               end if          
           END DO
           if (MAXVAL(fracture_hist) > puny) then
@@ -301,7 +301,7 @@
           end do
 
           ! normalize
-          if (SUM(frac_local) /= c0) frac_local(:) = frac_local(:) / SUM(frac_local(:))
+          if (SUM(frac_local) > puny) frac_local(:) = frac_local(:) / SUM(frac_local(:))
 
       end if
 
@@ -356,7 +356,7 @@
 
       real (kind = dbl_kind), dimension (:), allocatable :: &
            x, xp,  & ! spatial domain 
-           yH, yP, &  ! homogenous and particular SSH solution
+           !yH, yP, &  ! homogenous and particular SSH solution
            yppH, yppP, & ! second deriv SSH for each solution
            ypp           ! second deriv SSH for total solution
 
@@ -386,8 +386,8 @@
        nx = NINT(Lint/dx+dx)  
        allocate(x(nx))
        allocate(xp(nx))
-       allocate(yP(nx))
-       allocate(yH(nx))
+       !allocate(yP(nx))
+       !allocate(yH(nx))
        allocate(ypp(nx))
        allocate(strain(nx))
        allocate(strain_yP(nx))
@@ -465,7 +465,7 @@
            end if
     
            ! homogenous solution
-           yH = EXP(xp)*(cc(1)*COS(xp)+cc(2)*SIN(xp)) + EXP(-xp)*(cc(3)*COS(xp)+cc(4)*SIN(xp))
+           !yH = EXP(xp)*(cc(1)*COS(xp)+cc(2)*SIN(xp)) + EXP(-xp)*(cc(3)*COS(xp)+cc(4)*SIN(xp))
            yppH = (EXP(xp)*(-cc(1)*SIN(xp)+cc(2)*COS(xp)) - EXP(-xp)*(-cc(3)*SIN(xp)+cc(4)*COS(xp)))/Lambda**2
 
        end if ! L less than 300m
@@ -476,7 +476,7 @@
        END DO
 
        ! compute particular solution
-       yP = MATMUL(AAmi,COS(arg))+(ap*x+bp)
+       !yP = MATMUL(AAmi,COS(arg))+(ap*x+bp)
        yppP = -MATMUL(AAmi/langi**2,COS(arg))
 
        strain_yP = hbar*yppP/c2
