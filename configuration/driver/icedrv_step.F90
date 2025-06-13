@@ -443,7 +443,7 @@
       use icedrv_domain_size, only: ncat, nilyr, nslyr, n_aero, nblyr, &
                                     nx
       use icedrv_flux, only: fresh, frain, fpond, frzmlt, frazil, frz_onset
-      use icedrv_flux, only: fsalt, Tf, sss, salinz, fhocn, rsiden, wlat
+      use icedrv_flux, only: fsalt, Tf, sss, Tair, salinz, fhocn, rsiden, wlat
       use icedrv_flux, only: meltl, frazil_diag, flux_bio, faero_ocn, fiso_ocn
       use icedrv_flux, only: HDO_ocn, H2_16O_ocn, H2_18O_ocn
       use icedrv_flux, only: mipnd
@@ -504,7 +504,7 @@
                          trcr_base=trcr_base(1:ntrcr,:),              &
                          n_trcr_strata=n_trcr_strata(1:ntrcr),        &
                          nt_strata=nt_strata(1:ntrcr,:),              &
-                         Tf=Tf(i), sss=sss(i),                        &
+                         Tf=Tf(i), sss=sss(i), Tair=Tair(i),          &
                          salinz=salinz(i,:),                          &
                          wlat=wlat(i),                                &
                          rsiden=rsiden(i,:), meltl=meltl(i),          &
