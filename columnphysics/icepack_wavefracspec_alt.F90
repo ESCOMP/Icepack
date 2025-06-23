@@ -382,6 +382,8 @@
        real (kind=dbl_kind), dimension(:,:), allocatable :: &
            arg
 
+       integer :: iseed(2)
+
        Lint = NINT(L)
        nx = NINT(Lint/dx+dx)  
        allocate(x(nx))
@@ -406,6 +408,12 @@
 
        ! this should be the same each run
        ! and for restarts
+
+       iseed(1) = nint(hbar*1000.d0-hbar*100.d0)
+       iseed(2) = nint(hbar*5000.d0-hbar*500.d0)
+
+       ! Initialize seed based on the thickness field.
+       call random_seed(put=iseed)
        CALL RANDOM_NUMBER(PHIi)
        PHIi = c2*pi*PHIi
 
