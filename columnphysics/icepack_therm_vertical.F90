@@ -20,7 +20,9 @@
       module icepack_therm_vertical
 
       use icepack_kinds
+
       use icepack_fsd, only: floe_rad_c, floe_binwidth
+
       use icepack_parameters, only: c0, c1, c2, p001, p5, puny
       use icepack_parameters, only: pi, depressT, Lvap, hs_min, cp_ice, min_salin
       use icepack_parameters, only: cp_ocn, rhow, rhoi, rhos, Lfresh, rhofresh, ice_ref_salinity

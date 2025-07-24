@@ -50,7 +50,7 @@
                                           fswsfc,   fswint,   &
                                           Sswabs,   Iswabs,   &
                                           hilyr,    hslyr,    &
-                                          apond,     hpond,   &
+                                          apond,    hpond,    &
                                           zqin,     zTin,     &
                                           zqsn,     zTsn,     &
                                           zSin,               &
@@ -116,7 +116,7 @@
          zSin        , & ! internal ice layer salinities
          zqsn        , & ! snow layer enthalpy (J m-3)
          zTsn            ! internal snow layer temperatures
-     
+
      real (kind=dbl_kind), intent(inout):: &
          dpnd_flush  , & ! pond flushing rate due to ice permeability (m/s)
          dpnd_expon      ! exponential pond drainage rate (m/s)
@@ -3105,7 +3105,7 @@
   subroutine flushing_velocity(zTin,   phi,   &
                                hin,    hsn,   &
                                hilyr,         &
-                               hpond,  apond,  &
+                               hpond,  apond, &
                                dt,     w)
 
     ! calculate the vertical flushing Darcy velocity (positive downward)
@@ -3151,7 +3151,7 @@
     ! only flush if ponds are active
     if (tr_pond) then
 
-       call calc_ice_mass(phi, zTin, hilyr, ice_mass)
+       ice_mass  = c0
        perm_harm = c0
        phi_min   = c1
 
@@ -3172,6 +3172,8 @@
           perm_harm = perm_harm + c1 / (perm + 1e-30_dbl_kind)
 
        enddo ! k
+
+       ice_mass = ice_mass * hilyr
 
        perm_harm = real(nilyr,dbl_kind) / perm_harm
 
@@ -3220,7 +3222,7 @@
 
     ! given a flushing velocity drain the meltponds
 
-   real(kind=dbl_kind), intent(in) :: &
+    real(kind=dbl_kind), intent(in) :: &
          w     , & ! vertical flushing Darcy flow rate (m s-1)
          dt    , & ! time step (s)
          hilyr , & ! ice layer thickness (m)

@@ -120,7 +120,7 @@
       character(len=16), parameter :: fld_3d_nfsd(num_3d_nfsd) = &
          (/ 'd_afsd_newi     ', 'd_afsd_latg     ', 'd_afsd_latm     ', &
             'd_afsd_wave     ', 'd_afsd_weld     ' /)
-      
+
       integer (kind=dbl_kind), parameter :: num_3d_pond = 8
       character(len=16), parameter :: fld_3d_pond(num_3d_pond) = &
          (/ 'apndn           ', 'hpndn           ', 'ipndn           ', &
@@ -477,6 +477,12 @@
          ! this is a temporary implementation, hardcode to write the first 3 fields only
          if (tr_pnd_topo) numvars=3
          do n = 1,numvars
+            allocate(value3(count3(1),count3(2),1))
+
+            value3 = -9999._dbl_kind
+            if (trim(fld_3d_pond(n)) == 'apndn'        ) value3(1:count3(1),1:count3(2),1) = trcrn(1:count3(1),nt_apnd,1:count3(2))
+            if (trim(fld_3d_pond(n)) == 'hpndn'        ) value3(1:count3(1),1:count3(2),1) = trcrn(1:count3(1),nt_hpnd,1:count3(2))
+            if (trim(fld_3d_pond(n)) == 'ipndn'        ) value3(1:count3(1),1:count3(2),1) = trcrn(1:count3(1),nt_ipnd,1:count3(2))
             if (trim(fld_3d_pond(n)) == 'dpnd_flushn'  ) value3(1:count3(1),1:count3(2),1) = dpnd_flushn  (1:count3(1),1:count3(2))
             if (trim(fld_3d_pond(n)) == 'dpnd_exponn'  ) value3(1:count3(1),1:count3(2),1) = dpnd_exponn  (1:count3(1),1:count3(2))
             if (trim(fld_3d_pond(n)) == 'dpnd_freebdn' ) value3(1:count3(1),1:count3(2),1) = dpnd_freebdn (1:count3(1),1:count3(2))
