@@ -99,7 +99,7 @@
                              vicen,       vsnon,       &
                              aice,        aice0,       &
                              fpond,       Tf,          &
-                             mipnd)
+                             dpnd_melt)
 
       real (kind=dbl_kind), dimension(0:ncat), intent(in) :: &
          hin_max      ! category boundaries (m)
@@ -133,8 +133,10 @@
       real (kind=dbl_kind), intent(inout) :: &
          aice  , & ! concentration of ice
          aice0 , & ! concentration of open water
-         fpond , & ! fresh water flux to ponds (kg/m^2/s)
-         mipnd     ! pond 'drainage' due to ice melting (m / step)
+         fpond     ! fresh water flux to ponds (kg/m^2/s)
+
+      real (kind=dbl_kind), intent(inout), optional :: &
+         dpnd_melt ! pond 'drainage' due to ice melting (m / step)
 
       ! local variables
 
@@ -465,12 +467,12 @@
                   if (tr_pond_topo) &
                      fpond = fpond - (da0 * trcrn(nt_apnd,1) &
                                           * trcrn(nt_hpnd,1))
-                  if (tr_pond) then
+                  if (tr_pond .and. present(dpnd_melt)) then
                      if (tr_pond_lvl) then
-                        mipnd = mipnd + da0 * trcrn(nt_apnd,1)  & 
+                        dpnd_melt = dpnd_melt + da0 * trcrn(nt_apnd,1)  &
                                  * trcrn(nt_hpnd,1) * trcrn(nt_alvl,1)
                      else
-                        mipnd = mipnd + da0*trcrn(nt_apnd,1)*trcrn(nt_hpnd,1)
+                        dpnd_melt = dpnd_melt + da0*trcrn(nt_apnd,1)*trcrn(nt_hpnd,1)
                      endif
                   endif
 
@@ -888,7 +890,7 @@
                                aicen,      vicen,      &
                                vsnon,      trcrn,      &
                                flux_bio,   d_afsd_latm,&
-                               mipnd)
+                               dpnd_melt)
 
       real (kind=dbl_kind), intent(in) :: &
          dt        ! time step (s)
@@ -912,8 +914,10 @@
          fresh     , & ! fresh water flux to ocean (kg/m^2/s)
          fsalt     , & ! salt flux to ocean (kg/m^2/s)
          fhocn     , & ! net heat flux to ocean (W/m^2)
-         meltl     , & ! lateral ice melt         (m/step-->cm/day)
-         mipnd         ! pond 'drainage' due to ice melting (m / step)
+         meltl         ! lateral ice melt         (m/step-->cm/day)
+
+      real (kind=dbl_kind), intent(inout), optional :: &
+         dpnd_melt     ! pond 'drainage' due to ice melting (m / step)
 
       real (kind=dbl_kind), dimension(nbtrcr), intent(inout) :: &
          flux_bio  ! biology tracer flux from layer bgc (mmol/m^2/s)
@@ -1027,15 +1031,15 @@
             fpond  = fpond - dfpond
          endif
 
-         if (tr_pond) then
-            if (tr_pond_lvl) then
-               mipnd = mipnd + aicen(n)*trcrn(nt_apnd,n)*trcrn(nt_hpnd,n) &
-                        *rsiden(n)*trcrn(nt_alvl,n)
-            else
-               mipnd = mipnd + aicen(n)*trcrn(nt_apnd,n)*trcrn(nt_hpnd,n) &
-                        *rsiden(n)
+            if (tr_pond .and. present(dpnd_melt)) then
+               if (tr_pond_lvl) then
+                  dpnd_melt = dpnd_melt + aicen(n)*trcrn(nt_apnd,n)*trcrn(nt_hpnd,n) &
+                           *rsiden(n)*trcrn(nt_alvl,n)
+               else
+                  dpnd_melt = dpnd_melt + aicen(n)*trcrn(nt_apnd,n)*trcrn(nt_hpnd,n) &
+                           *rsiden(n)
+               endif
             endif
-         endif
 
          ! history diagnostics
          meltl = meltl + vicen_init(n)*rsiden(n)
@@ -1896,7 +1900,7 @@
                                      dwavefreq,                   &
                                      d_afsd_latg,  d_afsd_newi,   &
                                      d_afsd_latm,  d_afsd_weld,   &
-                                     mipnd)
+                                     dpnd_melt)
 
       use icepack_parameters, only: icepack_init_parameters
 
@@ -1939,8 +1943,10 @@
          fhocn    , & ! net heat flux to ocean (W/m^2)
          meltl    , & ! lateral ice melt         (m/step-->cm/day)
          frazil   , & ! frazil ice growth        (m/step-->cm/day)
-         frazil_diag, &  ! frazil ice growth diagnostic (m/step-->cm/day)
-         mipnd        ! pond 'drainage' due to ice melting (m / step)
+         frazil_diag  ! frazil ice growth diagnostic (m/step-->cm/day)
+
+      real (kind=dbl_kind), intent(inout), optional :: &
+         dpnd_melt    ! pond 'drainage' due to ice melting (m / step)
 
       real (kind=dbl_kind), intent(in), optional :: &
          wlat         ! lateral melt rate (m/s)
@@ -2080,7 +2086,7 @@
                              aice      ,         &
                              aice0     ,         &
                              fpond, Tf ,         &
-                             mipnd)
+                             dpnd_melt)
             if (icepack_warnings_aborted(subname)) return
 
          endif ! aice > puny
@@ -2131,7 +2137,7 @@
                          aicen,     vicen,         &
                          vsnon,     trcrn,         &
                          flux_bio,                 &
-                         d_afsd_latm, mipnd)
+                         d_afsd_latm, dpnd_melt)
       if (icepack_warnings_aborted(subname)) return
 
       ! Floe welding during freezing conditions
@@ -2152,7 +2158,7 @@
          call reduce_area (hin_max   (0),                &
                            aicen     (1), vicen     (1), &
                            aicen_init(1), vicen_init(1), &
-                           mipnd,         trcrn)
+                           dpnd_melt    , trcrn)
          if (icepack_warnings_aborted(subname)) return
 
       !-----------------------------------------------------------------

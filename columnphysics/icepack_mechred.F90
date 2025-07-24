@@ -109,7 +109,7 @@
                             dardg1ndt,   dardg2ndt,  &
                             dvirdgndt,   Tf,         &
                             araftn,      vraftn,     &
-                            closing,     rdpnd)
+                            closing,     dpnd_ridge)
 
       integer (kind=int_kind), intent(in) :: &
          ndtd       ! number of dynamics subcycles
@@ -167,7 +167,7 @@
          fpond      , & ! fresh water flux to ponds (kg/m^2/s)
          fresh      , & ! fresh water flux to ocean (kg/m^2/s)
          fhocn      , & ! net heat flux to ocean (W/m^2)
-         rdpnd          ! pond drainage due to ridging (m w.e. avg. over cell)
+         dpnd_ridge     ! pond drainage due to ridging (m avg. over cell)
 
       real (kind=dbl_kind), dimension(:), intent(inout), optional :: &
          dardg1ndt  , & ! rate of fractional area loss by ridging ice (1/s)
@@ -605,10 +605,11 @@
             enddo
          endif
       endif
+      ! diagnostic for all non-topo pond schemes, which are virtual
       if (present(fpond)) then
          fpond = fpond - mpond ! units change later
       endif
-      if (present(rdpnd)) rdpnd = mpond
+      if (present(dpnd_ridge)) dpnd_ridge = mpond
 
       !-----------------------------------------------------------------
       ! Check for fractional ice area > 1.
@@ -1394,14 +1395,14 @@
                enddo
             endif
 
-            if (tr_pond_topo .or. tr_pond_sealvl) then
-               mpond = mpond + ardg1n * trcrn(nt_apnd,n) &
-                                      * trcrn(nt_hpnd,n)
-            endif
-
+            ! diagnostic for all non-topo pond schemes, which are virtual
             if (tr_pond_lvl) then
                mpond = mpond + ardg1n * trcrn(nt_apnd,n) &
-                                      * trcrn(nt_hpnd,n) * trcrn(nt_alvl,n)
+                                      * trcrn(nt_hpnd,n) &
+                                      * trcrn(nt_alvl,n)
+            elseif (tr_pond_topo .or. tr_pond_sealvl) then
+               mpond = mpond + ardg1n * trcrn(nt_apnd,n) &
+                                      * trcrn(nt_hpnd,n)
             endif
 
       !-----------------------------------------------------------------
@@ -1751,7 +1752,7 @@
                                     aice,         fsalt,         &
                                     first_ice,                   &
                                     flux_bio,     closing,       &
-                                    Tf,           rdpnd,         &
+                                    Tf,           dpnd_ridge,    &
                                     docleanup,    dorebin)
 
       real (kind=dbl_kind), intent(in) :: &
@@ -1825,7 +1826,7 @@
          first_ice    ! true until ice forms
 
       real (kind=dbl_kind), intent(inout), optional :: &
-         rdpnd        ! pond drainage due to ridging (m w.e. avg. over cell)
+         dpnd_ridge   ! pond drainage due to ridging
 
      logical (kind=log_kind), intent(in), optional ::   &
          docleanup, & ! if false, do not call cleanup_itd (default true)
@@ -1903,7 +1904,7 @@
                       dardg1ndt,    dardg2ndt,      &
                       dvirdgndt,    Tf,             &
                       araftn,       vraftn,         &
-                      closing,      rdpnd )
+                      closing,      dpnd_ridge )
       if (icepack_warnings_aborted(subname)) return
 
       !-----------------------------------------------------------------

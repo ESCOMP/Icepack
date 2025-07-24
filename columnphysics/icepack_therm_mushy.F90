@@ -61,7 +61,8 @@
                                           fcondtop, fcondbot, &
                                           fadvheat, snoice,   &
                                           smice,    smliq,    &
-                                          flpnd,    expnd)
+                                          dpnd_flush,         &
+                                          dpnd_expon)
 
     ! solve the enthalpy and bulk salinity of the ice for a single column
 
@@ -117,8 +118,8 @@
          zTsn            ! internal snow layer temperatures
      
      real (kind=dbl_kind), intent(inout):: &
-         flpnd       , & ! pond flushing rate due to ice permeability (m/s)
-         expnd           ! exponential pond drainage rate (m/s)
+         dpnd_flush  , & ! pond flushing rate due to ice permeability (m/s)
+         dpnd_expon      ! exponential pond drainage rate (m/s)
 
     ! local variables
     real(kind=dbl_kind), dimension(1:nilyr) :: &
@@ -337,8 +338,8 @@
     endif
 
     ! drain ponds from flushing
-    call flush_pond(w, hpond, apond, dt, flpnd, expnd, &
-                        zTin, phi, hilyr, hin, hsn)
+    call flush_pond(w, hpond, apond, dt, dpnd_flush, dpnd_expon, &
+                    zTin, phi, hilyr, hin, hsn)
     if (icepack_warnings_aborted(subname)) return
 
     ! flood snow ice
@@ -3160,6 +3161,10 @@
           !phi = icepack_mushy_liquid_fraction(zTin(k), zSin(k))
           phi_min = min(phi_min,phi(k))
 
+          ice_mass = ice_mass + phi(k) * &
+           icepack_mushy_density_brine( &
+            liquidus_brine_salinity_mush(zTin(k))) + (c1 - phi(k))*rhoi
+
           ! permeability
           perm = permeability(phi(k))
 
@@ -3174,7 +3179,12 @@
        hocn = (ice_mass + hpond * apond * rhofresh + hsn * rhos) / rhow
 
        ! calculate brine height above bottom of ice
-       call pond_height(apond, hpond, hin, hbrine)
+       if (tr_pond_sealvl) then
+          call pond_height(apond, hpond, hin, hbrine)
+          if (icepack_warnings_aborted(subname)) return
+       else
+          hbrine = hin + hpond
+       endif
 
        ! pressure head
        dhhead = max(hbrine - hocn,c0)
@@ -3205,7 +3215,7 @@
 
 !=======================================================================
 
-  subroutine flush_pond(w, hpond, apond, dt, flpnd, expnd, &
+  subroutine flush_pond(w, hpond, apond, dt, dpnd_flush, dpnd_expon, &
                         zTin, phi, hilyr, hin, hsn)
 
     ! given a flushing velocity drain the meltponds
@@ -3222,11 +3232,11 @@
          phi           ! ice layer liquid fraction
 
     real(kind=dbl_kind), intent(inout) :: &
-         hpond , & ! melt pond thickness (m)
-         apond , & ! melt pond area fraction of category (-)
-         flpnd , & ! pond flushing rate due to ice permeability (m/s)
-         expnd     ! exponential pond drainage rate (m/s)
-     
+         hpond     , & ! melt pond thickness (m)
+         apond     , & ! melt pond area fraction of category (-)
+         dpnd_flush, & ! pond flushing rate due to ice permeability (m/s)
+         dpnd_expon    ! exponential pond drainage rate (m/s)
+
     real(kind=dbl_kind) :: &
          dhpond   , & ! change in pond depth per unit pond area (m)
          ice_mass , & ! mass of ice (kg m-2)
@@ -3248,16 +3258,17 @@
           ! flush pond through mush (percolation drainage)
           !-------------------------------------------------------------
           dhpond = max(-w * dt / apond, -hpond)
-          flpnd = -dhpond * apond
+          dpnd_flush = -dhpond * apond
           ! update pond depth (and area)
           if (tr_pond_sealvl) then
                call pond_hypsometry(hpond, apond, dhpond=dhpond, hin=hin)
+               if (icepack_warnings_aborted(subname)) return
           else
                hpond = hpond - w * dt / apond
           endif
           hpond = max(hpond, c0)
 
-          !-------------------------------------------------------------          
+          !-------------------------------------------------------------
           ! exponential decay of pond (macro-flaw drainage)
           !-------------------------------------------------------------
           lambda_pond = c1 / (tscale_pnd_drain*24.0_dbl_kind &
@@ -3265,9 +3276,13 @@
           if (trim(pndmacr) == 'lambda') then
                dhpond = max(-lambda_pond*dt*(hpond + hpond0),-hpond)
           elseif (trim(pndmacr) == 'head') then
+               ! Calling calc_ice_mass here is not bit-for-bit due to optimization, so left inline for now.
+               ! This will be updated in the future.
                call calc_ice_mass(phi, zTin, hilyr, ice_mass)
+               if (icepack_warnings_aborted(subname)) return
                hocn = (ice_mass + hpond*apond*rhofresh + hsn*rhos)/rhow
                call pond_height(apond, hpond, hin, hpsurf)
+               if (icepack_warnings_aborted(subname)) return
                head = hpsurf - hocn
                dhpond = max(min(c0, -lambda_pond*dt*head), -hpond)
           else
@@ -3276,10 +3291,11 @@
                if (icepack_warnings_aborted(subname)) return
           endif
           ! diagnostic drainage rate
-          expnd = -dhpond * apond
+          dpnd_expon = -dhpond * apond
           ! update pond depth (and area)
           if (tr_pond_sealvl) then
                call pond_hypsometry(hpond, apond, dhpond=dhpond, hin=hin)
+               if (icepack_warnings_aborted(subname)) return
           else
                if (trim(pndmacr) == 'lambda') then
                   hpond = hpond - lambda_pond * dt * (hpond + hpond0)
@@ -3663,7 +3679,7 @@
 !=======================================================================
 
   subroutine calc_ice_mass(phi, zTin, hilyr, ice_mass)
-     
+
      ! Calculate the mass of the ice per unit category area
      real(kind=dbl_kind), dimension(:), intent(in) :: &
           zTin      , & ! ice layer temperature (C)
@@ -3674,11 +3690,11 @@
 
      real(kind=dbl_kind), intent(out) :: &
           ice_mass      ! mass per unit category area (kg m-2)
-     
+
      ! local variables
      integer(kind=int_kind) :: &
           k             ! ice layer index
-     
+
      character(len=*),parameter :: subname='(calc_ice_mass)'
 
      ice_mass = c0
