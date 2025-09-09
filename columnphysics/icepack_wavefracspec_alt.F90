@@ -351,7 +351,7 @@
       ! local variables
       integer (kind = int_kind) :: &
            Lint, nx, & ! length, number of points in domain
-           j, & ! index
+           j, nseed, n, & ! index
            info, ipiv(4) ! variables for LAPACK matrix solver
 
       real (kind = dbl_kind), dimension (:), allocatable :: &
@@ -382,7 +382,7 @@
        real (kind=dbl_kind), dimension(:,:), allocatable :: &
            arg
 
-       integer :: iseed(2)
+       integer, dimension(:), allocatable :: iseed
 
        Lint = NINT(L)
        nx = NINT(Lint/dx+dx)  
@@ -409,8 +409,11 @@
        ! this should be the same each run
        ! and for restarts
 
-       iseed(1) = nint(hbar*1000.d0-hbar*100.d0)
-       iseed(2) = nint(hbar*5000.d0-hbar*500.d0)
+       call random_seed(size=nseed)
+       allocate(iseed(nseed))
+       do n=1,nseed
+          iseed(n) = nint(hbar*real(n,kind=dbl_kind)*1000.d0-hbar*real(n,kind=dbl_kind)*100.d0)
+       enddo
 
        ! Initialize seed based on the thickness field.
        call random_seed(put=iseed)
