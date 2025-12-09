@@ -29,7 +29,7 @@
       real (kind=dbl_kind), parameter  :: &
          young_mod  = 10e9, &          ! Youngs Modulus for ice (Pa)
          straincrit = 3.e-5_dbl_kind, & ! critical strain
-         dx = c2 !0.5_dbl_kind ! domain spacing (m)
+         dx = c4                       ! domain spacing (m)
 
 !=======================================================================
 
