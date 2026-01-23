@@ -45,16 +45,12 @@
 !  authors: 2018 Lettie Roach, NIWA/VUW
 !           2024 Lettie Roach, Columbia/NASA GISS - updates for new scheme
 !
-      subroutine icepack_step_wavefracture_alt(wave_spec_type,   &
-                  dt,                                        &
-                  nfreq,                                     &
+      subroutine icepack_step_wavefracture_alt(              &
+                  dt,            nfreq,                      &
                   aice,          vice,            aicen,     &
                   wave_spectrum, wavefreq,        dwavefreq, &
-                  trcrn,         d_afsd_wave)
+                  trcrn,         d_afsd_wave,     wave_height)
 
-
-      character (len=char_len), intent(in) :: &
-         wave_spec_type   ! type of wave spectrum forcing
 
       integer (kind=int_kind), intent(in) :: &
          nfreq            ! number of wave frequency categories
@@ -74,6 +70,9 @@
       real (kind=dbl_kind), dimension(:), intent(inout) :: &
          wave_spectrum   ! ocean surface wave spectrum as a function of frequency
                          ! power spectral density of surface elevation, E(f) (units m^2 s)
+
+      real (kind=dbl_kind), intent(in), optional :: &
+         wave_height     ! significant wave height (m)
 
       real (kind=dbl_kind), dimension(:,:), intent(inout) :: &
          trcrn           ! tracer array
@@ -104,7 +103,8 @@
          afsd_init    , & ! tracer array
          afsd_tmp     , & ! tracer array
          d_afsd_tmp       ! change
-   character(len=*),parameter :: &
+
+      character(len=*),parameter :: &
          subname='(icepack_step_wavefracture_alt)'
 
 
@@ -117,6 +117,16 @@
 
       ! if all ice is not in first floe size category
       if (.NOT. ALL(trcrn(nt_fsd,:).ge.c1-puny)) then
+
+         ! set significant wave height
+!        if (present(wave_height)) then
+!           local_sig_ht = wave_height
+!        elseif (trim(wave_height_type) == 'coupled') then
+!           call icepack_warnings_add(subname//&
+!           ' ERROR: wave_height_type=coupled but no wave height data found')
+!           call icepack_warnings_setabort(.true.,__FILE__,__LINE__)
+!        endif
+
       if ((aice > p01).and.(MAXVAL(wave_spectrum(:)) > puny)) then
 
           hbar = vice/aice ! note- average thickness
