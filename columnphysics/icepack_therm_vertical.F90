@@ -1623,7 +1623,7 @@
     ! Convert snow to ice if snow lies below freeboard.
     !-------------------------------------------------------------------
 
-      if (ktherm /= 2) &
+      if (ktherm /= 2) then
          call freeboard (snoice,                 &
                          hin,      hsn,          &
                          zqin,     zqsn,         &
@@ -1631,6 +1631,7 @@
                          dsnow,                  &
                          massice,  massliq)
          if (icepack_warnings_aborted(subname)) return
+      endif
 
     !-------------------------------------------------------------------
     ! Update snow mass tracers for uneven layers
