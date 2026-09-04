@@ -395,7 +395,7 @@
        integer, dimension(:), allocatable :: iseed
 
        Lint = NINT(L)
-       nx = NINT(Lint/dx+dx)  
+       nx = NINT(Lint/dx+1)
        allocate(x(nx))
        allocate(xp(nx))
        !allocate(yP(nx))
@@ -480,6 +480,7 @@
 
            ! matrix solver
            ipiv(:) = c0
+           cc(:) = bb(:)
            call DGESV (4, 1, aa, 4, ipiv, cc, 4, info)
            if (info/=0) then
                print *, ' -- LAPACK DGESV return error code: ',info
